@@ -185,35 +185,72 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
   };
 
   const renderText = () => {
-    // Windowing: only render characters that are near the current typing position
-    // This dramatically improves performance for long texts
     const currentIndex = userInput.length;
-    const windowStart = Math.max(0, currentIndex - 200);
-    const windowEnd = Math.min(targetText.length, currentIndex + 600);
-    
-    const chars = [];
-    for (let i = windowStart; i < windowEnd; i++) {
-      const char = targetText[i];
-      const isTyped = i < currentIndex;
-      const isCorrect = isTyped ? userInput[i] === char : null;
-      const isCurrent = i === currentIndex;
+    const words = targetText.split(' ');
+    let globalIdx = 0;
 
-      chars.push(
-        <span 
-          key={i} 
-          ref={el => { charRefs.current[i] = el; }}
-          className="inline-block"
-        >
-          <Character 
-            char={char} 
-            isTyped={isTyped} 
-            isCorrect={isCorrect}
-            isCurrent={isCurrent}
-          />
+    return words.map((word, wordIdx) => {
+      const wordChars = [];
+      const currentGlobalIdx = globalIdx;
+
+      for (let i = 0; i < word.length; i++) {
+        const charIdx = currentGlobalIdx + i;
+        const char = word[i];
+        const isTyped = charIdx < currentIndex;
+        const isCorrect = isTyped ? userInput[charIdx] === char : null;
+        const isCurrent = charIdx === currentIndex;
+
+        wordChars.push(
+          <span 
+            key={charIdx} 
+            ref={el => { charRefs.current[charIdx] = el; }}
+            className="inline-block"
+          >
+            <Character 
+              char={char} 
+              isTyped={isTyped} 
+              isCorrect={isCorrect}
+              isCurrent={isCurrent}
+            />
+          </span>
+        );
+      }
+
+      globalIdx += word.length;
+      
+      const spaceIdx = globalIdx;
+      const hasSpace = spaceIdx < targetText.length;
+      let spaceComponent = null;
+
+      if (hasSpace) {
+        const isTyped = spaceIdx < currentIndex;
+        const isCorrect = isTyped ? userInput[spaceIdx] === ' ' : null;
+        const isCurrent = spaceIdx === currentIndex;
+
+        spaceComponent = (
+          <span 
+            key={spaceIdx} 
+            ref={el => { charRefs.current[spaceIdx] = el; }}
+            className="inline-block"
+          >
+            <Character 
+              char=" " 
+              isTyped={isTyped} 
+              isCorrect={isCorrect}
+              isCurrent={isCurrent}
+            />
+          </span>
+        );
+        globalIdx += 1;
+      }
+
+      return (
+        <span key={wordIdx} className="inline-block whitespace-nowrap">
+          {wordChars}
+          {spaceComponent}
         </span>
       );
-    }
-    return chars;
+    });
   };
 
   return (
