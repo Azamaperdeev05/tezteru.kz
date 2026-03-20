@@ -57,7 +57,7 @@ export const DetailedStats = memo(({ stats }: DetailedStatsProps) => {
           <AlertCircle size={14} />
           <span>Жиі қате кететін әріптер</span>
         </div>
-        <div className="flex gap-2 mt-2">
+        <div className="flex flex-wrap gap-2 mt-2">
           {topErrors.length > 0 ? (
             topErrors.map(([char, count]) => (
               <div key={char} className="flex flex-col items-center flex-1 bg-[var(--sub-color)]/5 rounded p-1">

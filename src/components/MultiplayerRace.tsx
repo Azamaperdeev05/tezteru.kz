@@ -146,38 +146,38 @@ export function MultiplayerRace() {
   if (!roomId) {
     return (
       <div className="flex flex-col items-center justify-center gap-8 py-12 animate-in fade-in duration-500">
-        <div className="text-center">
-          <Users size={48} className="mx-auto mb-4 text-[var(--accent-color)]" />
-          <h2 className="text-3xl font-bold text-[var(--main-color)] mb-2">Жарыс режимі</h2>
-          <p className="text-[var(--sub-color)]">Достарыңызбен нақты уақытта жарысыңыз</p>
+        <div className="text-center px-4">
+          <Users size={32} className="mx-auto mb-4 text-(--accent-color) sm:w-12 sm:h-12" />
+          <h2 className="text-2xl sm:text-3xl font-bold text-(--main-color) mb-2">Жарыс режимі</h2>
+          <p className="text-(--sub-color) text-sm sm:text-base">Достарыңызбен нақты уақытта жарысыңыз</p>
         </div>
         
         <div className="flex flex-col md:flex-row gap-8 w-full max-w-2xl">
-          <div className="flex-1 bg-[var(--bg-color)] p-8 rounded-2xl border border-[var(--sub-color)]/20 flex flex-col items-center text-center">
-            <h3 className="text-xl font-bold text-[var(--main-color)] mb-4">Жаңа бөлме құру</h3>
+          <div className="flex-1 bg-(--bg-color) p-6 sm:p-8 rounded-2xl border border-(--sub-color)/20 flex flex-col items-center text-center">
+            <h3 className="text-xl font-bold text-(--main-color) mb-4">Жаңа бөлме құру</h3>
             <button 
               onClick={createRoom} 
               disabled={isCreating}
-              className="px-6 py-3 bg-[var(--accent-color)] text-[var(--bg-color)] rounded-full font-bold hover:opacity-90 transition-opacity w-full flex items-center justify-center gap-2 disabled:opacity-50"
+              className="px-6 py-3 bg-(--accent-color) text-(--bg-color) rounded-full font-bold hover:opacity-90 transition-opacity w-full flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isCreating ? <Loader2 size={20} className="animate-spin" /> : 'Бөлме ашу'}
             </button>
           </div>
           
-          <div className="flex-1 bg-[var(--bg-color)] p-8 rounded-2xl border border-[var(--sub-color)]/20 flex flex-col items-center text-center">
-            <h3 className="text-xl font-bold text-[var(--main-color)] mb-4">Бөлмеге қосылу</h3>
+          <div className="flex-1 bg-(--bg-color) p-6 sm:p-8 rounded-2xl border border-(--sub-color)/20 flex flex-col items-center text-center">
+            <h3 className="text-xl font-bold text-(--main-color) mb-4">Бөлмеге қосылу</h3>
             <input 
               type="text" 
               placeholder="4 таңбалы код..." 
               maxLength={4}
               value={joinId}
               onChange={e => setJoinId(e.target.value.replace(/\D/g, ''))}
-              className="w-full px-4 py-2 mb-4 bg-transparent border border-[var(--sub-color)] rounded-lg text-[var(--main-color)] focus:border-[var(--accent-color)] outline-none text-center font-mono text-xl tracking-widest"
+              className="w-full px-4 py-2 mb-4 bg-transparent border border-(--sub-color) rounded-lg text-(--main-color) focus:border-(--accent-color) outline-none text-center font-mono text-xl tracking-widest"
             />
             <button 
               onClick={joinRoom} 
               disabled={isJoining || joinId.length !== 4}
-              className="px-6 py-3 bg-[var(--main-color)] text-[var(--bg-color)] rounded-full font-bold hover:opacity-90 transition-opacity w-full flex items-center justify-center gap-2 disabled:opacity-50"
+              className="px-6 py-3 bg-(--main-color) text-(--bg-color) rounded-full font-bold hover:opacity-90 transition-opacity w-full flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isJoining ? <Loader2 size={20} className="animate-spin" /> : 'Қосылу'}
             </button>
@@ -191,21 +191,21 @@ export function MultiplayerRace() {
 
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col gap-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center bg-[var(--bg-color)] p-4 rounded-xl border border-[var(--sub-color)]/20">
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-(--bg-color) p-4 rounded-xl border border-(--sub-color)/20 gap-4 sm:gap-0">
         <div>
-          <p className="text-sm text-[var(--sub-color)]">Бөлме коды:</p>
+          <p className="text-xs sm:text-sm text-(--sub-color)">Бөлме коды:</p>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xl text-[var(--main-color)]">{roomId}</span>
+            <span className="font-mono text-lg sm:text-xl text-(--main-color)">{roomId}</span>
             <button 
               onClick={() => { navigator.clipboard.writeText(roomId); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-              className="text-[var(--sub-color)] hover:text-[var(--accent-color)]"
+              className="text-(--sub-color) hover:text-(--accent-color)"
             >
               {copied ? <Check size={20} /> : <Copy size={20} />}
             </button>
           </div>
         </div>
         {roomData.status === 'waiting' && (
-          <button onClick={startGame} className="px-6 py-2 bg-[var(--accent-color)] text-[var(--bg-color)] rounded-full font-bold hover:opacity-90">
+          <button onClick={startGame} className="w-full sm:w-auto px-6 py-2 bg-(--accent-color) text-(--bg-color) rounded-full font-bold hover:opacity-90">
             Жарысты бастау
           </button>
         )}
@@ -213,22 +213,22 @@ export function MultiplayerRace() {
 
       <div className="flex flex-col gap-4">
         {Object.entries(roomData.players || {}).map(([uid, player]: [string, any]) => (
-          <div key={uid} className="relative w-full h-14 bg-[var(--bg-color)] rounded-full border border-[var(--sub-color)]/20 overflow-hidden">
+          <div key={uid} className="relative w-full h-12 sm:h-14 bg-(--bg-color) rounded-full border border-(--sub-color)/20 overflow-hidden">
             <div 
-              className="absolute top-0 left-0 h-full bg-[var(--accent-color)]/20 transition-all duration-300"
+              className="absolute top-0 left-0 h-full bg-(--accent-color)/20 transition-all duration-300"
               style={{ width: `${player.progress}%` }}
             />
-            <div className="absolute inset-0 flex items-center justify-between px-6 z-10">
-              <span className="font-bold text-[var(--main-color)] drop-shadow-md">{player.displayName}</span>
-              <div className="flex items-center gap-3">
-                {player.wpm > 0 && <span className="font-mono font-bold text-[var(--accent-color)]">{player.wpm} ЖСМ</span>}
-                <span className="font-mono text-[var(--sub-color)]">{player.progress}%</span>
-                {player.finished && <Trophy size={18} className="text-yellow-500" />}
+            <div className="absolute inset-0 flex items-center justify-between px-3 sm:px-6 z-10">
+              <span className="font-bold text-xs sm:text-base text-(--main-color) drop-shadow-md truncate max-w-[120px] sm:max-w-none">{player.displayName}</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                {player.wpm > 0 && <span className="font-mono font-bold text-(--accent-color) text-xs sm:text-base">{player.wpm} <span className="hidden xs:inline">ЖСМ</span></span>}
+                <span className="font-mono text-(--sub-color) text-xs sm:text-base">{player.progress}%</span>
+                {player.finished && <Trophy size={14} className="text-yellow-500 sm:w-5 sm:h-5" />}
               </div>
             </div>
             <div 
-              className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 text-2xl z-0 opacity-50 scale-x-[-1]"
-              style={{ left: `calc(${player.progress}% - 30px)` }}
+              className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 text-lg sm:text-2xl z-0 opacity-50 scale-x-[-1]"
+              style={{ left: `calc(${player.progress}% - 20px)` }}
             >
               🏎️
             </div>
@@ -237,17 +237,17 @@ export function MultiplayerRace() {
       </div>
 
       {roomData.status === 'playing' && (
-        <div className="mt-8">
-          <div className="text-2xl font-mono leading-relaxed mb-8 text-[var(--sub-color)] select-none">
+        <div className="mt-4 sm:mt-8 px-4">
+          <div className="text-lg sm:text-2xl font-mono leading-relaxed mb-6 sm:mb-8 text-(--sub-color) select-none">
             {roomData.targetText.split('').map((char: string, i: number) => (
-              <span key={i} className={i < input.length ? 'text-[var(--main-color)]' : ''}>{char}</span>
+              <span key={i} className={i < input.length ? 'text-(--main-color)' : ''}>{char}</span>
             ))}
           </div>
           <input
             type="text"
             value={input}
             onChange={e => handleInput(e.target.value)}
-            className="w-full px-6 py-4 text-2xl font-mono bg-[var(--bg-color)] border-2 border-[var(--sub-color)] rounded-xl text-[var(--main-color)] focus:border-[var(--accent-color)] outline-none"
+            className="w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-2xl font-mono bg-(--bg-color) border-2 border-(--sub-color) rounded-xl text-(--main-color) focus:border-(--accent-color) outline-none"
             placeholder="Осында жазыңыз..."
             autoFocus
           />

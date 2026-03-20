@@ -91,7 +91,7 @@ export function StatsPage() {
       </div>
 
       {/* Main Chart */}
-      <div className="bg-[var(--bg-color)] p-6 rounded-2xl border border-[var(--sub-color)]/20 h-[400px]">
+      <div className="bg-[var(--bg-color)] p-4 md:p-6 rounded-2xl border border-[var(--sub-color)]/20 h-[300px] md:h-[400px]">
         <h3 className="text-lg font-bold text-[var(--main-color)] mb-6 flex items-center gap-2">
           Теру прогресі (WPM бойынша)
         </h3>

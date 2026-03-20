@@ -97,48 +97,50 @@ function AppContent() {
   return (
     <BrowserRouter>
       <div className="min-h-screen flex flex-col">
-        <header className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between mt-4">
+        <header className="w-full max-w-[1000px] mx-auto px-4 h-16 sm:h-20 flex items-center justify-between mt-2 sm:mt-4">
           <Link 
             to="/"
-            className="flex items-center gap-3 text-(--sub-color) hover:text-(--main-color) transition-colors cursor-pointer"
+            className="flex items-center gap-2 sm:gap-3 text-(--sub-color) hover:text-(--main-color) transition-colors cursor-pointer shrink-0"
           >
-            <Keyboard size={32} strokeWidth={2} className="text-(--accent-color)" />
-            <h1 className="text-2xl font-bold tracking-tighter lowercase font-sans">tezteru<span className="text-(--sub-color) font-normal text-sm ml-2">kz</span></h1>
+            <Keyboard size={24} strokeWidth={2.5} className="text-(--accent-color) sm:w-8 sm:h-8" />
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tighter lowercase font-sans">
+              tezteru<span className="text-(--sub-color) font-normal text-xs sm:text-sm ml-1 sm:ml-2">kz</span>
+            </h1>
           </Link>
           
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4 text-(--sub-color)">
+          <div className="flex items-center gap-2 sm:gap-6 overflow-x-auto no-scrollbar py-2 ml-4">
+            <div className="flex items-center gap-2 sm:gap-4 text-(--sub-color)">
               <Link 
                 to="/arcade"
-                className={cn("hover:text-(--main-color) transition-colors", window.location.pathname === '/arcade' && "text-(--main-color)")}
+                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/arcade' && "text-(--main-color)")}
                 title="Аркада"
               >
                 <Gamepad2 size={20} />
               </Link>
               <Link 
                 to="/multiplayer"
-                className={cn("hover:text-(--main-color) transition-colors", window.location.pathname === '/multiplayer' && "text-(--main-color)")}
+                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/multiplayer' && "text-(--main-color)")}
                 title="Жарыс"
               >
                 <Users size={20} />
               </Link>
               <Link 
                 to="/leaderboard"
-                className={cn("hover:text-(--main-color) transition-colors", window.location.pathname === '/leaderboard' && "text-(--main-color)")}
+                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/leaderboard' && "text-(--main-color)")}
                 title="Көшбасшылар тақтасы"
               >
                 <Trophy size={20} />
               </Link>
               <Link 
                 to="/stats"
-                className={cn("hover:text-(--main-color) transition-colors", window.location.pathname === '/stats' && "text-(--main-color)")}
+                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/stats' && "text-(--main-color)")}
                 title="Статистика"
               >
                 <BarChart3 size={20} />
               </Link>
               <Link 
                 to="/settings"
-                className={cn("hover:text-(--main-color) transition-colors", window.location.pathname === '/settings' && "text-(--main-color)")}
+                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/settings' && "text-(--main-color)")}
                 title="Баптаулар"
               >
                 <SettingsIcon size={20} />
@@ -146,7 +148,7 @@ function AppContent() {
               {user && (
                 <Link 
                   to="/profile"
-                  className={cn("hover:text-(--main-color) transition-colors", window.location.pathname === '/profile' && "text-(--main-color)")}
+                  className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/profile' && "text-(--main-color)")}
                   title="Профиль"
                 >
                   <UserIcon size={20} />
@@ -154,7 +156,7 @@ function AppContent() {
               )}
               <button 
                 onClick={() => setSoundEnabled(!soundEnabled)}
-                className="hover:text-(--main-color) transition-colors"
+                className="hover:text-(--main-color) transition-colors p-1.5"
                 title={soundEnabled ? "Дыбысты өшіру" : "Дыбысты қосу"}
               >
                 {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
@@ -162,14 +164,16 @@ function AppContent() {
               {showInstallButton && (
                 <button 
                   onClick={handleInstallClick}
-                  className="hover:text-(--main-color) transition-colors text-(--accent-color) animate-bounce"
+                  className="hover:text-(--main-color) transition-colors text-(--accent-color) animate-bounce p-1.5"
                   title="Қосымшаны орнату"
                 >
                   <Download size={20} />
                 </button>
               )}
             </div>
-            <Auth user={user} />
+            <div className="shrink-0 pl-2 border-l border-(--sub-color)/20">
+              <Auth user={user} />
+            </div>
           </div>
         </header>
 

@@ -27,7 +27,7 @@ const Character = memo(({ char, isCorrect, isTyped, isCurrent }: {
   };
   
   return (
-    <span className="text-3xl font-mono inline-block whitespace-pre" style={style}>
+    <span className="text-2xl sm:text-3xl font-mono inline-block whitespace-pre" style={style}>
       {char}
     </span>
   );
@@ -257,71 +257,71 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
     <div className="w-full flex flex-col gap-8">
       {status === 'idle' && !zenMode && (
         <div className="flex justify-center">
-          <div className="flex bg-[var(--bg-color)] rounded-lg p-1 gap-4 items-center text-sm font-medium text-[var(--sub-color)]">
+          <div className="flex flex-wrap justify-center bg-(--bg-color) rounded-lg p-1 gap-2 sm:gap-4 items-center text-xs sm:text-sm font-medium text-(--sub-color)">
             
             {/* Punctuation & Numbers */}
-            <div className="flex items-center gap-1 border-r border-[var(--sub-color)]/20 pr-4">
+            <div className="flex items-center gap-1 border-r border-(--sub-color)/20 pr-2 sm:pr-4">
               <button
                 onClick={() => onConfigChange({ ...config, punctuation: !config.punctuation, practiceWords: [] })}
-                className={cn("px-3 py-1.5 rounded-md transition-colors flex items-center gap-2", config.punctuation ? "text-[var(--accent-color)]" : "hover:text-[var(--main-color)]")}
+                className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 sm:gap-2", config.punctuation ? "text-(--accent-color)" : "hover:text-(--main-color)")}
               >
-                <Quote size={14} /> белгілер
+                <Quote size={14} /> <span className="hidden xs:inline">белгілер</span>
               </button>
               <button
                 onClick={() => onConfigChange({ ...config, numbers: !config.numbers, practiceWords: [] })}
-                className={cn("px-3 py-1.5 rounded-md transition-colors flex items-center gap-2", config.numbers ? "text-[var(--accent-color)]" : "hover:text-[var(--main-color)]")}
+                className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 sm:gap-2", config.numbers ? "text-(--accent-color)" : "hover:text-(--main-color)")}
               >
-                <Hash size={14} /> сандар
+                <Hash size={14} /> <span className="hidden xs:inline">сандар</span>
               </button>
             </div>
 
             {/* Mode Selection */}
-            <div className="flex items-center gap-1 border-r border-[var(--sub-color)]/20 pr-4">
+            <div className="flex items-center gap-1 border-r border-(--sub-color)/20 pr-2 sm:pr-4">
               <button
                 onClick={() => onConfigChange({ ...config, mode: 'time', amount: 30, practiceWords: [] })}
-                className={cn("px-3 py-1.5 rounded-md transition-colors flex items-center gap-2", config.mode === 'time' ? "text-[var(--accent-color)]" : "hover:text-[var(--main-color)]")}
+                className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 sm:gap-2", config.mode === 'time' ? "text-(--accent-color)" : "hover:text-(--main-color)")}
               >
-                <Clock size={14} /> уақыт
+                <Clock size={14} /> <span className="hidden xs:inline">уақыт</span>
               </button>
               <button
                 onClick={() => onConfigChange({ ...config, mode: 'words', amount: 25, practiceWords: [] })}
-                className={cn("px-3 py-1.5 rounded-md transition-colors flex items-center gap-2", config.mode === 'words' ? "text-[var(--accent-color)]" : "hover:text-[var(--main-color)]")}
+                className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 sm:gap-2", config.mode === 'words' ? "text-(--accent-color)" : "hover:text-(--main-color)")}
               >
-                <Type size={14} /> сөздер
+                <Type size={14} /> <span className="hidden xs:inline">сөздер</span>
               </button>
             </div>
 
             {/* Amount Selection */}
-            <div className="flex items-center gap-1 border-r border-[var(--sub-color)]/20 pr-4">
+            <div className="flex items-center gap-1 border-r border-(--sub-color)/20 pr-2 sm:pr-4">
               {(config.mode === 'time' ? [15, 30, 60, 120] : [10, 25, 50, 100]).map((amt) => (
                 <button
                   key={amt}
                   onClick={() => onConfigChange({ ...config, amount: amt, practiceWords: [] })}
-                  className={cn("px-3 py-1.5 rounded-md transition-colors", config.amount === amt ? "text-[var(--accent-color)]" : "hover:text-[var(--main-color)]")}
+                  className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors", config.amount === amt ? "text-(--accent-color)" : "hover:text-(--main-color)")}
                 >
                   {amt}
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center gap-4 pl-4">
+            <div className="flex items-center gap-2 sm:gap-4 pl-2 sm:pl-4">
               <button
                 onClick={() => setCaretStyle('line')}
-                className={cn("transition-colors", caretStyle === 'line' ? "text-[var(--main-color)]" : "text-[var(--sub-color)] hover:text-[var(--main-color)]")}
+                className={cn("transition-colors", caretStyle === 'line' ? "text-(--main-color)" : "text-(--sub-color) hover:text-(--main-color)")}
                 title="Сызық курсор"
               >
                 <Minus size={16} className="rotate-90" />
               </button>
               <button
                 onClick={() => setCaretStyle('block')}
-                className={cn("transition-colors", caretStyle === 'block' ? "text-[var(--main-color)]" : "text-[var(--sub-color)] hover:text-[var(--main-color)]")}
+                className={cn("transition-colors", caretStyle === 'block' ? "text-(--main-color)" : "text-(--sub-color) hover:text-(--main-color)")}
                 title="Блок курсор"
               >
                 <Square size={16} />
               </button>
               <button
                 onClick={() => setCaretStyle('underline')}
-                className={cn("transition-colors", caretStyle === 'underline' ? "text-[var(--main-color)]" : "text-[var(--sub-color)] hover:text-[var(--main-color)]")}
+                className={cn("transition-colors", caretStyle === 'underline' ? "text-(--main-color)" : "text-(--sub-color) hover:text-(--main-color)")}
                 title="Астын сызу курсор"
               >
                 <Underline size={16} />
@@ -335,24 +335,24 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
         <div className="w-full animate-in fade-in duration-500">
           <div className="flex flex-col md:flex-row gap-8 mb-8">
             {/* Left Stats */}
-            <div className="flex flex-col justify-center min-w-[150px]">
+            <div className="flex flex-col justify-center min-w-[120px] sm:min-w-[150px] text-center md:text-left">
               <div className="mb-4 group relative cursor-help">
-                <div className="text-3xl text-[var(--sub-color)] mb-[-8px] border-b border-dashed border-[var(--sub-color)]/50 inline-block">жсм</div>
-                <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-[var(--sub-color)] text-[var(--bg-color)] text-xs rounded shadow-lg z-50">
+                <div className="text-2xl sm:text-3xl text-(--sub-color) mb-[-8px] border-b border-dashed border-(--sub-color)/50 inline-block">жсм</div>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 md:translate-x-0 md:left-0 mb-2 hidden group-hover:block w-48 p-2 bg-(--sub-color) text-(--bg-color) text-xs rounded shadow-lg z-50">
                   Жылдамдық: минутына сөз саны (Words Per Minute)
                 </div>
-                <div className="text-7xl font-bold text-[var(--accent-color)] leading-none">{stats.wpm}</div>
+                <div className="text-5xl sm:text-7xl font-bold text-(--accent-color) leading-none">{stats.wpm}</div>
               </div>
               <div className="group relative cursor-help">
-                <div className="text-3xl text-[var(--sub-color)] mb-[-8px] border-b border-dashed border-[var(--sub-color)]/50 inline-block">дәлдік</div>
-                <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 p-2 bg-[var(--sub-color)] text-[var(--bg-color)] text-xs rounded shadow-lg z-50">
+                <div className="text-2xl sm:text-3xl text-(--sub-color) mb-[-8px] border-b border-dashed border-(--sub-color)/50 inline-block">дәлдік</div>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 md:translate-x-0 md:left-0 mb-2 hidden group-hover:block w-48 p-2 bg-(--sub-color) text-(--bg-color) text-xs rounded shadow-lg z-50">
                   Дұрыс жазылған әріптердің пайызы (Accuracy)
                 </div>
-                <div className="text-7xl font-bold text-[var(--accent-color)] leading-none">{stats.accuracy}%</div>
+                <div className="text-5xl sm:text-7xl font-bold text-(--accent-color) leading-none">{stats.accuracy}%</div>
               </div>
-              <div className="mt-6 text-[var(--sub-color)] text-sm">
+              <div className="mt-6 text-(--sub-color) text-sm">
                 <div>тест түрі</div>
-                <div className="text-[var(--main-color)]">
+                <div className="text-(--main-color)">
                   {config.mode} {config.amount}<br/>
                   қазақша
                   {config.punctuation && ' + белгілер'}
@@ -482,9 +482,9 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
             </div>
           )}
           <div 
-            className="relative h-[144px] overflow-hidden flex items-start cursor-text mt-4"
+            className="relative h-[116px] sm:h-[144px] overflow-hidden flex items-start cursor-text mt-4"
             onClick={() => inputRef.current?.focus()}
-            style={{ fontSize: 'var(--text-size, 1.875rem)' }}
+            style={{ fontSize: 'var(--text-size, inherit)' }}
           >
             <AnimatePresence mode="wait">
               <motion.div 

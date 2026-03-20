@@ -113,31 +113,33 @@ export function Leaderboard() {
       ) : (
         <div className="flex flex-col gap-2">
           {scores.map((score, index) => (
-            <div key={score.id} className="p-4 flex items-center justify-between rounded-lg hover:bg-[var(--main-color)]/5 transition-colors">
-              <div className="flex items-center gap-6">
-                <div className="w-6 text-center font-mono text-[var(--sub-color)] text-lg">
+            <div key={score.id} className="p-3 md:p-4 flex items-center justify-between rounded-lg hover:bg-[var(--main-color)]/5 transition-colors gap-2">
+              <div className="flex items-center gap-3 md:gap-6 min-w-0">
+                <div className="w-5 md:w-6 text-center font-mono text-[var(--sub-color)] text-base md:text-lg flex-shrink-0">
                   {index + 1}
                 </div>
                 {score.photoURL ? (
-                  <img src={score.photoURL} alt={score.displayName} className="w-10 h-10 rounded-full" referrerPolicy="no-referrer" />
+                  <img src={score.photoURL} alt={score.displayName} className="w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-[var(--sub-color)]/20 flex items-center justify-center text-[var(--main-color)] font-semibold text-lg">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[var(--sub-color)]/20 flex items-center justify-center text-[var(--main-color)] font-semibold text-base md:text-lg flex-shrink-0">
                     {score.displayName.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <div>
-                  <div className="font-medium text-[var(--main-color)] text-lg">{score.displayName}</div>
-                  <div className="text-sm text-[var(--sub-color)] capitalize">{score.mode === 'time' ? `${score.amount} сек` : `${score.amount} сөз`}</div>
+                <div className="min-w-0 pr-2">
+                  <div className="font-medium text-[var(--main-color)] text-base md:text-lg truncate">{score.displayName}</div>
+                  <div className="text-xs md:text-sm text-[var(--sub-color)] capitalize truncate">{score.mode === 'time' ? `${score.amount} сек` : `${score.amount} сөз`}</div>
                 </div>
               </div>
-              <div className="text-right flex items-center gap-8">
+              <div className="text-right flex items-center gap-3 md:gap-8 flex-shrink-0">
                 <div>
-                  <div className="text-xs text-[var(--sub-color)] mb-1">жылдамдық</div>
-                  <div className="font-bold text-[var(--accent-color)] text-2xl leading-none">{score.wpm}</div>
+                  <div className="text-[10px] md:text-xs text-[var(--sub-color)] mb-1 hidden sm:block">жылдамдық</div>
+                  <div className="text-[10px] md:text-xs text-[var(--sub-color)] mb-1 sm:hidden">WPM</div>
+                  <div className="font-bold text-[var(--accent-color)] text-xl md:text-2xl leading-none">{score.wpm}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-[var(--sub-color)] mb-1">дәлдік</div>
-                  <div className="font-medium text-[var(--main-color)] text-xl leading-none">{score.accuracy}%</div>
+                  <div className="text-[10px] md:text-xs text-[var(--sub-color)] mb-1 hidden sm:block">дәлдік</div>
+                  <div className="text-[10px] md:text-xs text-[var(--sub-color)] mb-1 sm:hidden">%</div>
+                  <div className="font-medium text-[var(--main-color)] text-lg md:text-xl leading-none">{score.accuracy}%</div>
                 </div>
               </div>
             </div>
