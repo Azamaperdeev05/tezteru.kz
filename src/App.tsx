@@ -1,5 +1,5 @@
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { Keyboard, Trophy, User as UserIcon, Volume2, VolumeX, Gamepad2, Users, Settings as SettingsIcon, Download } from 'lucide-react';
+import { Keyboard, Trophy, User as UserIcon, Volume2, VolumeX, Gamepad2, Users, Settings as SettingsIcon, Download, BarChart3 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -11,6 +11,7 @@ import { TypingTest } from './components/TypingTest';
 import { ArcadeMode } from './components/ArcadeMode';
 import { MultiplayerRace } from './components/MultiplayerRace';
 import { Settings } from './components/Settings';
+import { StatsPage } from './components/StatsPage';
 import { auth } from './firebase';
 import { TestConfig } from './hooks/useTypingTest';
 import { cn } from './lib/utils';
@@ -32,6 +33,7 @@ function AnimatedRoutes({ user, config, setConfig, soundEnabled }: any) {
           <Route path="/" element={<TypingTest config={config} onConfigChange={setConfig} soundEnabled={soundEnabled} />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/profile" element={user ? <Profile user={user} /> : <Navigate to="/" />} />
+          <Route path="/stats" element={<StatsPage />} />
           <Route path="/arcade" element={<ArcadeMode />} />
           <Route path="/multiplayer" element={<MultiplayerRace />} />
           <Route path="/settings" element={<Settings />} />
@@ -126,6 +128,13 @@ function AppContent() {
                 title="Көшбасшылар тақтасы"
               >
                 <Trophy size={20} />
+              </Link>
+              <Link 
+                to="/stats"
+                className={cn("hover:text-(--main-color) transition-colors", window.location.pathname === '/stats' && "text-(--main-color)")}
+                title="Статистика"
+              >
+                <BarChart3 size={20} />
               </Link>
               <Link 
                 to="/settings"
