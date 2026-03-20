@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Жарыстар (Multiplayer Rooms)
+    match /rooms/{roomId} {
+      allow read, write: if true; // Уақытша барлығына рұқсат (кейін күшейтуге болады)
+    }
+
+    // Нәтижелер (Scores)
+    match /scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Default deny for all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
