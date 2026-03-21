@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { generateWords } from '../lib/words';
+import { generateWords, type WordCategoryId } from '../lib/words';
 import { soundEngine } from '../lib/sounds';
 
 export type TestMode = 'time' | 'words';
@@ -10,6 +10,7 @@ export interface TestConfig {
   punctuation: boolean;
   numbers: boolean;
   practiceWords?: string[];
+  wordCategories?: WordCategoryId[];
 }
 
 export type TestStatus = 'idle' | 'typing' | 'finished';
@@ -78,7 +79,15 @@ export function useTypingTest(config: TestConfig, soundEnabled: boolean = true) 
 
   const generateNewText = useCallback(() => {
     const wordCount = config.mode === 'time' ? 300 : config.amount;
-    setTargetText(generateWords(wordCount, config.punctuation, config.numbers, config.practiceWords));
+    setTargetText(
+      generateWords(
+        wordCount,
+        config.punctuation,
+        config.numbers,
+        config.practiceWords,
+        config.wordCategories
+      )
+    );
   }, [config]);
 
   const reset = useCallback(() => {

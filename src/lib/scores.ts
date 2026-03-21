@@ -42,6 +42,16 @@ function sortScoresByDateDesc(scores: StoredScore[]) {
   return [...scores].sort((left, right) => getScoreTime(right) - getScoreTime(left));
 }
 
+function sortScoresByWpmDesc(scores: StoredScore[]) {
+  return [...scores].sort((left, right) => {
+    if (right.wpm !== left.wpm) {
+      return right.wpm - left.wpm;
+    }
+
+    return getScoreTime(right) - getScoreTime(left);
+  });
+}
+
 export async function fetchUserScores(uid: string, limitCount: number) {
   try {
     const indexedSnapshot = await getDocs(
@@ -125,15 +135,18 @@ export async function fetchLeaderboardScores(mode: 'time' | 'words', amount: num
       return { scores: [], usedFallback: false };
     }
 
-    console.warn('Missing Firestore index for leaderboard. Falling back to broader query.');
+    console.warn('Missing Firestore index for leaderboard. Falling back to amount-filtered client-side sorting.');
 
     try {
       const fallbackSnapshot = await getDocs(
-        query(collection(db, 'scores'), orderBy('wpm', 'desc'), limit(200))
+        query(collection(db, 'scores'), where('amount', '==', amount))
       );
+      const filteredScores = fallbackSnapshot.docs
+        .map(toStoredScore)
+        .filter((score) => score.mode === mode);
 
       return {
-        scores: collectUniqueScores(fallbackSnapshot.docs.map(toStoredScore)),
+        scores: collectUniqueScores(sortScoresByWpmDesc(filteredScores)),
         usedFallback: true,
       };
     } catch (fallbackError) {

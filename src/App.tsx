@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Link, NavLink, useLocation, Navigate } fr
 import { AnimatePresence, motion } from 'framer-motion';
 import { Auth } from './components/Auth';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ThemeToggle } from './components/ThemeToggle';
 import { TypingTest } from './components/TypingTest';
 import { auth } from './firebase';
 import { TestConfig } from './hooks/useTypingTest';
@@ -26,10 +27,15 @@ function NavIconLink({ to, title, icon: Icon }: { to: string; title: string; ico
   return (
     <NavLink
       to={to}
-      className={({ isActive }) => cn("hover:text-(--main-color) transition-colors p-1.5", isActive && "text-(--main-color)")}
+      className={({ isActive }) =>
+        cn(
+          'group inline-flex h-10 w-10 items-center justify-center rounded-full text-(--sub-color) transition-all hover:bg-(--main-color)/6 hover:text-(--main-color)',
+          isActive && 'bg-(--main-color)/6 text-(--accent-color)'
+        )
+      }
       title={title}
     >
-      <Icon size={20} />
+      <Icon size={18} className="transition-transform group-hover:scale-105" />
     </NavLink>
   );
 }
@@ -117,19 +123,28 @@ function AppContent() {
   return (
     <BrowserRouter>
       <div className="min-h-screen flex flex-col">
-        <header className="w-full max-w-[1000px] mx-auto px-4 h-16 sm:h-20 flex items-center justify-between mt-2 sm:mt-4">
-          <Link 
-            to="/"
-            className="flex items-center gap-2 sm:gap-3 text-(--sub-color) hover:text-(--main-color) transition-colors cursor-pointer shrink-0"
-          >
-            <Keyboard size={24} strokeWidth={2.5} className="text-(--accent-color) sm:w-8 sm:h-8" />
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tighter lowercase font-sans">
-              tezteru<span className="text-(--sub-color) font-normal text-xs sm:text-sm ml-1 sm:ml-2">kz</span>
-            </h1>
-          </Link>
-          
-          <div className="flex items-center gap-2 sm:gap-6 overflow-x-auto no-scrollbar py-2 ml-4">
-            <div className="flex items-center gap-2 sm:gap-4 text-(--sub-color)">
+        <header className="w-full max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <Link
+              to="/"
+              className="group inline-flex items-center gap-3 text-(--sub-color) transition-colors hover:text-(--main-color)"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-(--accent-color)/20 bg-(--main-color)/4 transition-transform group-hover:scale-[1.02]">
+                <Keyboard size={24} strokeWidth={2.4} className="text-(--accent-color)" />
+              </div>
+              <div className="leading-none">
+                <div className="text-[0.72rem] font-medium uppercase tracking-[0.22em] text-(--sub-color)/80">
+                  қазақша теру
+                </div>
+                <h1 className="mt-1 text-3xl font-bold tracking-[-0.08em] lowercase text-(--main-color)">
+                  tezteru
+                  <span className="ml-2 text-base font-medium tracking-[-0.03em] text-(--sub-color)">kz</span>
+                </h1>
+              </div>
+            </Link>
+
+            <div className="flex items-center justify-between gap-3 sm:gap-6">
+              <div className="no-scrollbar flex items-center gap-1 overflow-x-auto rounded-full border border-(--sub-color)/10 bg-(--main-color)/3 px-2 py-1 text-(--sub-color)">
               <NavIconLink to="/arcade" title="Аркада" icon={Gamepad2} />
               <NavIconLink to="/multiplayer" title="Жарыс" icon={Users} />
               <NavIconLink to="/leaderboard" title="Көшбасшылар тақтасы" icon={Trophy} />
@@ -137,58 +152,57 @@ function AppContent() {
               <NavIconLink to="/settings" title="Баптаулар" icon={SettingsIcon} />
               <button 
                 onClick={() => setSoundEnabled(!soundEnabled)}
-                className="hover:text-(--main-color) transition-colors p-1.5"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-(--sub-color) transition-all hover:bg-(--main-color)/6 hover:text-(--main-color)"
                 title={soundEnabled ? "Дыбысты өшіру" : "Дыбысты қосу"}
               >
-                {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+                {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
               </button>
               {showInstallButton && (
                 <button 
                   onClick={handleInstallClick}
-                  className="hover:text-(--main-color) transition-colors text-(--accent-color) animate-bounce p-1.5"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-(--accent-color) transition-all hover:bg-(--main-color)/6 hover:text-(--main-color)"
                   title="Қосымшаны орнату"
                 >
-                  <Download size={20} />
+                  <Download size={18} />
                 </button>
               )}
-            </div>
-            <div className="shrink-0 pl-2 border-l border-(--sub-color)/20">
-              <Auth user={user} />
+              </div>
+              <div className="shrink-0 border-l border-(--sub-color)/12 pl-3 sm:pl-5">
+                <Auth user={user} />
+              </div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex flex-col justify-center">
+        <main className="flex-1 w-full max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12 flex flex-col">
           <AnimatedRoutes user={user} config={config} setConfig={setConfig} soundEnabled={soundEnabled} />
         </main>
         
-        <footer className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6 text-(--sub-color) text-sm border-t border-(--sub-color)/10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-            <a href={SITE_LINKS.donate} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-3 hover:border-(--accent-color)/40 hover:text-(--main-color) transition-colors">
-              <HeartHandshake size={18} className="text-(--accent-color)" />
-              <span>Донат</span>
-            </a>
-            <a href={SITE_LINKS.githubProfile} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-3 hover:border-(--accent-color)/40 hover:text-(--main-color) transition-colors">
-              <Github size={18} className="text-(--accent-color)" />
-              <span>GitHub профилі</span>
-            </a>
-            <a href={SITE_LINKS.repository} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-3 hover:border-(--accent-color)/40 hover:text-(--main-color) transition-colors">
-              <Code2 size={18} className="text-(--accent-color)" />
-              <span>Жоба коды</span>
-            </a>
-            <a href={SITE_LINKS.emailHref} className="flex items-center gap-3 rounded-xl border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-3 hover:border-(--accent-color)/40 hover:text-(--main-color) transition-colors">
-              <Mail size={18} className="text-(--accent-color)" />
-              <span>{SITE_LINKS.email}</span>
-            </a>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-4">
-              <a href={SITE_LINKS.donate} target="_blank" rel="noreferrer" className="hover:text-(--main-color) transition-colors">Қолдау</a>
-              <a href={SITE_LINKS.githubProfile} target="_blank" rel="noreferrer" className="hover:text-(--main-color) transition-colors">GitHub</a>
-              <a href={SITE_LINKS.repository} target="_blank" rel="noreferrer" className="hover:text-(--main-color) transition-colors">Repository</a>
-              <a href={SITE_LINKS.emailHref} className="hover:text-(--main-color) transition-colors">Байланыс</a>
+        <footer className="w-full max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
+          <div className="flex flex-col gap-4 border-t border-(--sub-color)/10 pt-5 text-sm text-(--sub-color) sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <a href={SITE_LINKS.donate} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 transition-colors hover:text-(--main-color)">
+                <HeartHandshake size={15} className="text-(--accent-color)" />
+                <span>Донат</span>
+              </a>
+              <a href={SITE_LINKS.githubProfile} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 transition-colors hover:text-(--main-color)">
+                <Github size={15} className="text-(--accent-color)" />
+                <span>GitHub</span>
+              </a>
+              <a href={SITE_LINKS.repository} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 transition-colors hover:text-(--main-color)">
+                <Code2 size={15} className="text-(--accent-color)" />
+                <span>Репозиторий</span>
+              </a>
+              <a href={SITE_LINKS.emailHref} className="inline-flex items-center gap-2 transition-colors hover:text-(--main-color)">
+                <Mail size={15} className="text-(--accent-color)" />
+                <span>{SITE_LINKS.email}</span>
+              </a>
             </div>
-            <div className="text-[var(--sub-color)]/80">v2.0.0</div>
+            <div className="flex items-center gap-3 text-xs text-(--sub-color)/75 sm:text-sm">
+              <ThemeToggle />
+              <span className="text-(--sub-color)/35">|</span>
+              <span className="uppercase tracking-[0.22em]">v2.0.0</span>
+            </div>
           </div>
         </footer>
       </div>

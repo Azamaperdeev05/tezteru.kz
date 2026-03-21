@@ -45,7 +45,7 @@ export function Auth({ user }: AuthProps) {
   return (
     <button
       onClick={handleSignIn}
-      className="flex items-center gap-2 px-5 py-2 bg-(--main-color) text-(--bg-color) hover:opacity-90 rounded-full text-sm font-medium transition-all shadow-sm"
+      className="flex items-center gap-2 rounded-full border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-2 text-sm font-medium text-(--sub-color) transition-colors hover:text-(--main-color)"
     >
       <LogIn size={16} />
       <span>Кіру / Тіркелу</span>

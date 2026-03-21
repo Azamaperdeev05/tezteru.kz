@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, updateDoc, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, runTransaction, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { generateWords } from '../lib/words';
 import { Users, Copy, Check, Trophy, Loader2 } from 'lucide-react';
 
@@ -19,6 +19,8 @@ type RaceRoom = {
   createdAt?: unknown;
   startedAt?: number;
   hostId?: string;
+  playerCount: number;
+  finishedCount: number;
   players: Record<string, RacePlayer>;
 };
 
@@ -30,20 +32,44 @@ function getRoomHostId(room: RaceRoom | null) {
   return room.hostId ?? Object.keys(room.players ?? {})[0] ?? null;
 }
 
+function getRoomPlayerCount(room: RaceRoom) {
+  return room.playerCount ?? Object.keys(room.players ?? {}).length;
+}
+
+function getRoomFinishedCount(room: RaceRoom) {
+  return room.finishedCount ?? Object.values(room.players ?? {}).filter((player) => player.finished).length;
+}
+
 export function MultiplayerRace() {
   const [roomId, setRoomId] = useState('');
   const [roomData, setRoomData] = useState<RaceRoom | null>(null);
   const [joinId, setJoinId] = useState('');
   const [input, setInput] = useState('');
+  const raceInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const roomDataRef = useRef<RaceRoom | null>(null);
+  const roomIdRef = useRef('');
+  const pendingProgressRef = useRef<number | null>(null);
+  const progressTimeoutRef = useRef<number | null>(null);
+  const lastSentProgressRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    roomDataRef.current = roomData;
+  }, [roomData]);
+
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
 
   useEffect(() => {
     if (!roomId) return;
     const unsub = onSnapshot(doc(db, 'rooms', roomId), (docSnap) => {
       if (docSnap.exists()) {
         setRoomData(docSnap.data() as RaceRoom);
+      } else {
+        setRoomData(null);
       }
     });
     return () => unsub();
@@ -51,7 +77,135 @@ export function MultiplayerRace() {
 
   useEffect(() => {
     setInput('');
+    pendingProgressRef.current = null;
+    lastSentProgressRef.current = null;
+
+    if (progressTimeoutRef.current !== null) {
+      window.clearTimeout(progressTimeoutRef.current);
+      progressTimeoutRef.current = null;
+    }
   }, [roomId, roomData?.status]);
+
+  useEffect(() => {
+    if (roomData?.status !== 'playing') {
+      return;
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      raceInputRef.current?.focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [roomData?.status, roomData?.targetText]);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimeoutRef.current !== null) {
+        window.clearTimeout(progressTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const updateProgressInRoom = useCallback(async (progress: number) => {
+    const currentRoomId = roomIdRef.current;
+    const currentUser = auth.currentUser;
+    const currentRoom = roomDataRef.current;
+
+    if (!currentRoomId || !currentUser || currentRoom?.status !== 'playing') {
+      return;
+    }
+
+    await updateDoc(doc(db, 'rooms', currentRoomId), {
+      [`players.${currentUser.uid}.progress`]: progress,
+    });
+
+    lastSentProgressRef.current = progress;
+  }, []);
+
+  const flushQueuedProgress = useCallback(async () => {
+    const progress = pendingProgressRef.current;
+    pendingProgressRef.current = null;
+
+    if (progress === null || progress === lastSentProgressRef.current) {
+      return;
+    }
+
+    try {
+      await updateProgressInRoom(progress);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [updateProgressInRoom]);
+
+  const scheduleProgressSync = useCallback((progress: number) => {
+    pendingProgressRef.current = progress;
+
+    if (progressTimeoutRef.current !== null) {
+      return;
+    }
+
+    progressTimeoutRef.current = window.setTimeout(async () => {
+      progressTimeoutRef.current = null;
+      await flushQueuedProgress();
+    }, 180);
+  }, [flushQueuedProgress]);
+
+  const commitFinishedProgress = useCallback(async (wpm: number) => {
+    const currentRoomId = roomIdRef.current;
+    const currentUser = auth.currentUser;
+
+    if (!currentRoomId || !currentUser) {
+      return;
+    }
+
+    if (progressTimeoutRef.current !== null) {
+      window.clearTimeout(progressTimeoutRef.current);
+      progressTimeoutRef.current = null;
+    }
+
+    pendingProgressRef.current = null;
+
+    await runTransaction(db, async (transaction) => {
+      const roomRef = doc(db, 'rooms', currentRoomId);
+      const roomSnap = await transaction.get(roomRef);
+
+      if (!roomSnap.exists()) {
+        throw new Error('Бөлме табылмады.');
+      }
+
+      const room = roomSnap.data() as RaceRoom;
+
+      if (room.status !== 'playing') {
+        return;
+      }
+
+      const currentPlayer = room.players?.[currentUser.uid];
+
+      if (!currentPlayer) {
+        throw new Error('Сіз бұл бөлмеде тіркелмегенсіз.');
+      }
+
+      const playerCount = getRoomPlayerCount(room);
+      const finishedCount = getRoomFinishedCount(room);
+      const nextFinishedCount = currentPlayer.finished ? finishedCount : finishedCount + 1;
+      const updates: Record<string, unknown> = {
+        [`players.${currentUser.uid}.progress`]: 100,
+        [`players.${currentUser.uid}.finished`]: true,
+        [`players.${currentUser.uid}.wpm`]: wpm,
+        finishedCount: nextFinishedCount,
+      };
+
+      if (nextFinishedCount >= playerCount) {
+        updates.status = 'finished';
+      }
+
+      transaction.update(roomRef, updates);
+    });
+
+    lastSentProgressRef.current = 100;
+  }, []);
 
   const generateRoomCode = async () => {
     let code = '';
@@ -75,6 +229,8 @@ export function MultiplayerRace() {
         targetText,
         hostId: auth.currentUser.uid,
         createdAt: serverTimestamp(),
+        playerCount: 1,
+        finishedCount: 0,
         players: {
           [auth.currentUser.uid]: {
             displayName: auth.currentUser.displayName || 'Ойыншы 1',
@@ -99,26 +255,39 @@ export function MultiplayerRace() {
     setIsJoining(true);
     try {
       const roomRef = doc(db, 'rooms', joinId);
-      const roomSnap = await getDoc(roomRef);
-      if (!roomSnap.exists()) {
-        alert('Бөлме табылмады!');
-        setIsJoining(false);
-        return;
-      }
-      await setDoc(roomRef, {
-        players: {
-          [auth.currentUser.uid]: {
-            displayName: auth.currentUser.displayName || 'Ойыншы 2',
+      await runTransaction(db, async (transaction) => {
+        const roomSnap = await transaction.get(roomRef);
+
+        if (!roomSnap.exists()) {
+          throw new Error('Бөлме табылмады!');
+        }
+
+        const room = roomSnap.data() as RaceRoom;
+
+        if (room.status !== 'waiting') {
+          throw new Error('Бұл жарыс басталып кеткен немесе аяқталған.');
+        }
+
+        if (room.players?.[auth.currentUser!.uid]) {
+          return;
+        }
+
+        transaction.update(roomRef, {
+          [`players.${auth.currentUser!.uid}`]: {
+            displayName: auth.currentUser!.displayName || `Ойыншы ${getRoomPlayerCount(room) + 1}`,
             progress: 0,
             finished: false,
-            wpm: 0
-          }
-        }
-      }, { merge: true });
+            wpm: 0,
+          },
+          playerCount: getRoomPlayerCount(room) + 1,
+        });
+      });
+
       setRoomId(joinId);
       setInput('');
     } catch (e) {
       console.error(e);
+      alert(e instanceof Error ? e.message : 'Бөлмеге қосылу сәтсіз аяқталды.');
     } finally {
       setIsJoining(false);
     }
@@ -127,10 +296,35 @@ export function MultiplayerRace() {
   const startGame = async () => {
     if (!roomId || !roomData || !auth.currentUser) return;
     if (getRoomHostId(roomData) !== auth.currentUser.uid) return;
-    await updateDoc(doc(db, 'rooms', roomId), { 
-      status: 'playing',
-      startedAt: Date.now()
-    });
+    try {
+      await runTransaction(db, async (transaction) => {
+        const roomRef = doc(db, 'rooms', roomId);
+        const roomSnap = await transaction.get(roomRef);
+
+        if (!roomSnap.exists()) {
+          throw new Error('Бөлме табылмады.');
+        }
+
+        const currentRoom = roomSnap.data() as RaceRoom;
+
+        if (currentRoom.hostId !== auth.currentUser?.uid) {
+          throw new Error('Жарысты тек бөлме иесі бастай алады.');
+        }
+
+        if (currentRoom.status !== 'waiting') {
+          throw new Error('Жарыс бұрыннан басталып кеткен.');
+        }
+
+        transaction.update(roomRef, {
+          status: 'playing',
+          startedAt: Date.now(),
+          finishedCount: 0,
+        });
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : 'Жарысты бастау сәтсіз аяқталды.');
+    }
   };
 
   const handleInput = async (val: string) => {
@@ -156,25 +350,17 @@ export function MultiplayerRace() {
       wpm = Math.round((targetText.length / 5) / timeInMinutes);
     }
 
-    const updates: any = {
-      [`players.${auth.currentUser.uid}.progress`]: progress,
-      [`players.${auth.currentUser.uid}.finished`]: finished
-    };
-    
     if (finished) {
-      updates[`players.${auth.currentUser.uid}.wpm`] = wpm;
+      try {
+        await commitFinishedProgress(wpm);
+      } catch (error) {
+        console.error(error);
+      }
+      return;
     }
 
-    await updateDoc(doc(db, 'rooms', roomId), updates);
-
-    if (finished) {
-      // Check if everyone is finished
-      const allFinished = Object.entries(roomData.players).every(([uid, player]) => 
-        uid === auth.currentUser?.uid ? finished : player.finished
-      );
-      if (allFinished) {
-        await updateDoc(doc(db, 'rooms', roomId), { status: 'finished' });
-      }
+    if (progress !== lastSentProgressRef.current) {
+      scheduleProgressSync(progress);
     }
   };
 
@@ -283,33 +469,40 @@ export function MultiplayerRace() {
 
       {roomData.status === 'playing' && (
         <div className="mt-4 sm:mt-8 px-4">
-          <div className="text-lg sm:text-2xl leading-relaxed mb-6 sm:mb-8 text-(--sub-color) select-none typing-font">
-            {roomData.targetText.split('').map((char: string, i: number) => (
-              <span
-                key={i}
-                className={
-                  input[i] == null
-                    ? ''
-                    : input[i] === char
-                      ? 'text-(--main-color)'
-                      : 'text-(--error-color)'
-                }
-              >
-                {char}
-              </span>
-            ))}
+          <div
+            className="relative cursor-text rounded-[1.75rem] border border-(--sub-color)/12 bg-(--main-color)/4 px-5 py-5 sm:px-6 sm:py-6"
+            onClick={() => raceInputRef.current?.focus()}
+          >
+            <div className="text-lg sm:text-2xl leading-relaxed text-(--sub-color) select-none typing-font">
+              {roomData.targetText.split('').map((char: string, i: number) => (
+                <span
+                  key={i}
+                  className={
+                    input[i] == null
+                      ? ''
+                      : input[i] === char
+                        ? 'text-(--main-color)'
+                        : 'text-(--error-color)'
+                  }
+                >
+                  {char}
+                </span>
+              ))}
+            </div>
+
+            <input
+              ref={raceInputRef}
+              type="text"
+              value={input}
+              onChange={e => handleInput(e.target.value)}
+              className="absolute inset-0 opacity-0 pointer-events-none"
+              autoFocus
+              spellCheck={false}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+            />
           </div>
-          <input
-            type="text"
-            value={input}
-            onChange={e => handleInput(e.target.value)}
-            className="w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-2xl typing-font bg-(--bg-color) border-2 border-(--sub-color) rounded-xl text-(--main-color) focus:border-(--accent-color) outline-none"
-            autoFocus
-            spellCheck={false}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-          />
         </div>
       )}
 

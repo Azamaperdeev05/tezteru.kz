@@ -43,6 +43,7 @@ export const DEFAULT_THEME_ID = 'dark';
 export const DEFAULT_INTERFACE_FONT_ID = 'Inter';
 export const DEFAULT_TYPING_FONT_ID = 'IBM Plex Sans';
 export const DEFAULT_FONT_ID = DEFAULT_INTERFACE_FONT_ID;
+export const THEME_CHANGE_EVENT = 'tezteru:theme-change';
 
 function clampChannel(value: number) {
   return Math.min(255, Math.max(0, Math.round(value)));
@@ -342,6 +343,7 @@ export function applyTheme(themeId: string) {
   themeMeta?.setAttribute('content', theme.bg);
 
   window.localStorage.setItem(STORAGE_KEYS.theme, theme.id);
+  window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { themeId: theme.id } }));
 
   return theme;
 }

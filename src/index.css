@@ -17,6 +17,7 @@
   }
   body {
     background-color: var(--bg-color);
+    background-image: radial-gradient(circle at top, color-mix(in srgb, var(--main-color) 4%, transparent), transparent 38%);
     color: var(--main-color);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -37,5 +38,19 @@
   
   header, footer {
     transition: opacity 0.3s ease;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent-color) 35%, transparent);
+    color: var(--main-color);
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

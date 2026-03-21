@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { RefreshCw, Save, Clock, Type, Hash, Quote, RotateCcw, Minus, Square, Underline } from 'lucide-react';
-import { Suspense, lazy, memo, useCallback, useEffect, useRef, useState } from 'react';
+import { CSSProperties, Suspense, lazy, memo, useCallback, useEffect, useRef, useState } from 'react';
 import { auth, db } from '../firebase';
 import { TestConfig, useTypingTest } from '../hooks/useTypingTest';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
@@ -21,6 +21,7 @@ const Character = memo(({ char, isCorrect, isTyped, isCurrent }: {
   // Use simple CSS variables instead of tailwind-merge for high-frequency rendering
   const style = {
     fontFamily: 'var(--font-typing)',
+    fontSize: 'var(--text-size, 1.875rem)',
     color: !isTyped 
       ? 'var(--sub-color)' 
       : (isCorrect ? 'var(--main-color)' : 'var(--error-color)'),
@@ -28,7 +29,7 @@ const Character = memo(({ char, isCorrect, isTyped, isCurrent }: {
   };
   
   return (
-    <span className="text-2xl sm:text-3xl inline-block whitespace-pre" style={style}>
+    <span className="inline-block whitespace-pre font-normal tracking-[0.01em]" style={style}>
       {char}
     </span>
   );
@@ -46,10 +47,16 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
   const { targetText, userInput, status, stats, timeLeft, handleInput, reset } = useTypingTest(config, soundEnabled);
   const inputRef = useRef<HTMLInputElement>(null);
   const caretRef = useRef<HTMLDivElement>(null);
+  const typingViewportRef = useRef<HTMLDivElement>(null);
+  const textContainerRef = useRef<HTMLDivElement>(null);
   const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const visibleStartLineRef = useRef(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [hasTypingFocus, setHasTypingFocus] = useState(() => document.hasFocus());
+  const [isWindowFocused, setIsWindowFocused] = useState(() => document.hasFocus());
+  const [isDocumentVisible, setIsDocumentVisible] = useState(() => document.visibilityState === 'visible');
   const [caretStyle, setCaretStyle] = useState<CaretStyle>(() => {
     return (localStorage.getItem('caretStyle') as CaretStyle) || 'line';
   });
@@ -69,15 +76,42 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
 
   useEffect(() => {
     if (status === 'idle') {
-      inputRef.current?.focus();
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        setHasTypingFocus(true);
+      });
       setSaved(false);
+      visibleStartLineRef.current = 0;
       setScrollOffset(0);
     }
+  }, [status]);
+
+  useEffect(() => {
+    charRefs.current = [];
+    visibleStartLineRef.current = 0;
+    setScrollOffset(0);
+  }, [targetText]);
+
+  const focusTypingInput = useCallback(() => {
+    if (status === 'finished') return;
+
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      setHasTypingFocus(true);
+      setIsWindowFocused(true);
+      setIsDocumentVisible(document.visibilityState === 'visible');
+    });
   }, [status]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (status !== 'finished' && !hasTypingFocus && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        focusTypingInput();
+        return;
+      }
+
       if (e.key === 'Tab') {
         e.preventDefault();
         reset();
@@ -85,7 +119,52 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [reset]);
+  }, [reset, status, hasTypingFocus, focusTypingInput]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: Event) => {
+      const target = event.target as Node | null;
+
+      if (typingViewportRef.current?.contains(target)) {
+        return;
+      }
+
+      setHasTypingFocus(false);
+      inputRef.current?.blur();
+    };
+
+    const handleWindowBlur = () => {
+      setIsWindowFocused(false);
+      setHasTypingFocus(false);
+    };
+
+    const handleWindowFocus = () => {
+      setIsWindowFocused(true);
+    };
+
+    const handleVisibilityChange = () => {
+      const visible = document.visibilityState === 'visible';
+      setIsDocumentVisible(visible);
+
+      if (!visible) {
+        setHasTypingFocus(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('mousedown', handlePointerDown, true);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('mousedown', handlePointerDown, true);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Caret positioning
   const updateCaretPosition = useCallback(() => {
@@ -95,21 +174,51 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
     requestAnimationFrame(() => {
       const activeIndex = userInput.length;
       const activeEl = charRefs.current[activeIndex];
+      const measuredLineHeight = textContainerRef.current
+        ? parseFloat(window.getComputedStyle(textContainerRef.current).lineHeight)
+        : Number.NaN;
+      const resolveLineHeight = (element: HTMLElement) => {
+        if (Number.isFinite(measuredLineHeight)) {
+          return measuredLineHeight;
+        }
+
+        const elementLineHeight = parseFloat(window.getComputedStyle(element).lineHeight);
+        if (Number.isFinite(elementLineHeight)) {
+          return elementLineHeight;
+        }
+
+        return element.getBoundingClientRect().height;
+      };
+      const resolveScrollOffset = (top: number, lineHeight: number) => {
+        const currentLineIndex = Math.max(0, Math.round(top / lineHeight));
+        const currentVisibleStartLine = visibleStartLineRef.current;
+
+        let nextVisibleStartLine = currentVisibleStartLine;
+
+        if (currentLineIndex < currentVisibleStartLine) {
+          nextVisibleStartLine = currentLineIndex;
+        } else if (currentLineIndex > currentVisibleStartLine + 2) {
+          nextVisibleStartLine = currentLineIndex - 2;
+        }
+
+        visibleStartLineRef.current = nextVisibleStartLine;
+
+        return nextVisibleStartLine * lineHeight;
+      };
       
       if (activeEl && caretRef.current) {
         const top = activeEl.offsetTop;
-        if (Math.abs(scrollOffset - (top > 48 ? top - 48 : 0)) > 10) {
-          setScrollOffset(top > 48 ? top - 48 : 0);
+        const lineHeight = resolveLineHeight(activeEl);
+        const nextOffset = resolveScrollOffset(top, lineHeight);
+        if (Math.abs(scrollOffset - nextOffset) > 4) {
+          setScrollOffset(nextOffset);
         }
         caretRef.current.style.transform = `translate(${activeEl.offsetLeft}px, ${activeEl.offsetTop}px)`;
       } else if (activeIndex === targetText.length && charRefs.current[activeIndex - 1] && caretRef.current) {
         const lastEl = charRefs.current[activeIndex - 1]!;
         const top = lastEl.offsetTop;
-        if (top > 48) {
-          setScrollOffset(top - 48);
-        } else {
-          setScrollOffset(0);
-        }
+        const lineHeight = resolveLineHeight(lastEl);
+        setScrollOffset(resolveScrollOffset(top, lineHeight));
         caretRef.current.style.transform = `translate(${lastEl.offsetLeft + lastEl.offsetWidth}px, ${lastEl.offsetTop}px)`;
       }
     });
@@ -120,6 +229,20 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
     window.addEventListener('resize', updateCaretPosition);
     return () => window.removeEventListener('resize', updateCaretPosition);
   }, [updateCaretPosition]);
+
+  useEffect(() => {
+    if (!hasTypingFocus || status === 'finished') {
+      return;
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      updateCaretPosition();
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [hasTypingFocus, status, updateCaretPosition]);
 
   useEffect(() => {
     if (zenMode && status === 'typing') {
@@ -137,7 +260,7 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
     try {
       await addDoc(collection(db, 'scores'), {
         uid: auth.currentUser.uid,
-        displayName: auth.currentUser.displayName || 'Anonymous',
+        displayName: auth.currentUser.displayName || 'Қонақ',
         photoURL: auth.currentUser.photoURL || null,
         wpm: stats.wpm,
         rawWpm: stats.rawWpm,
@@ -192,6 +315,18 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
       });
     }
   };
+
+  const amountOptions = config.mode === 'time' ? [15, 30, 60, 120] : [10, 25, 50, 100];
+  const toolbarButtonClass =
+    'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors sm:px-3.5 sm:text-xs';
+  const activeToolbarButtonClass = 'text-(--accent-color)';
+  const inactiveToolbarButtonClass = 'text-(--sub-color) hover:text-(--main-color)';
+  const typingViewportStyle = {
+    fontSize: 'var(--text-size, 1.875rem)',
+    fontFamily: 'var(--font-typing)',
+    height: 'calc(var(--text-size, 1.875rem) * 1.45 * 3 + 0.25rem)'
+  } as CSSProperties;
+  const showFocusOverlay = status !== 'finished' && (!hasTypingFocus || !isWindowFocused || !isDocumentVisible);
 
   const renderText = () => {
     const currentIndex = userInput.length;
@@ -263,77 +398,111 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
   };
 
   return (
-    <div className="w-full flex flex-col gap-8">
-      {status === 'idle' && !zenMode && (
-        <div className="flex justify-center">
-          <div className="flex flex-wrap justify-center bg-(--bg-color) rounded-lg p-1 gap-2 sm:gap-4 items-center text-xs sm:text-sm font-medium text-(--sub-color)">
-            
-            {/* Punctuation & Numbers */}
-            <div className="flex items-center gap-1 border-r border-(--sub-color)/20 pr-2 sm:pr-4">
+    <div className="mx-auto flex w-full max-w-[1160px] flex-1 flex-col items-center gap-6 sm:gap-8 lg:gap-10">
+      {!zenMode && status !== 'finished' && (
+        <div className="-mt-2 w-full max-w-[900px] sm:-mt-3">
+          <div className="mx-auto flex flex-wrap items-center justify-center gap-1.5 rounded-[1.45rem] border border-(--sub-color)/10 bg-(--main-color)/4 px-2.5 py-1.5 text-[11px] font-medium text-(--sub-color) sm:gap-2.5 sm:px-3 sm:py-2 sm:text-xs">
+            <div className="flex items-center gap-1 sm:gap-1.5">
               <button
                 onClick={() => onConfigChange({ ...config, punctuation: !config.punctuation, practiceWords: [] })}
-                className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 sm:gap-2", config.punctuation ? "text-(--accent-color)" : "hover:text-(--main-color)")}
+                className={cn(
+                  toolbarButtonClass,
+                  'inline-flex items-center gap-1.5',
+                  config.punctuation ? activeToolbarButtonClass : inactiveToolbarButtonClass
+                )}
               >
-                <Quote size={14} /> <span className="hidden xs:inline">белгілер</span>
+                <Quote size={13} />
+                <span>белгілер</span>
               </button>
               <button
                 onClick={() => onConfigChange({ ...config, numbers: !config.numbers, practiceWords: [] })}
-                className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 sm:gap-2", config.numbers ? "text-(--accent-color)" : "hover:text-(--main-color)")}
+                className={cn(
+                  toolbarButtonClass,
+                  'inline-flex items-center gap-1.5',
+                  config.numbers ? activeToolbarButtonClass : inactiveToolbarButtonClass
+                )}
               >
-                <Hash size={14} /> <span className="hidden xs:inline">сандар</span>
+                <Hash size={13} />
+                <span>сандар</span>
               </button>
             </div>
 
-            {/* Mode Selection */}
-            <div className="flex items-center gap-1 border-r border-(--sub-color)/20 pr-2 sm:pr-4">
+            <span className="hidden h-6 w-px bg-(--sub-color)/15 sm:block" />
+
+            <div className="flex items-center gap-1 sm:gap-1.5">
               <button
                 onClick={() => onConfigChange({ ...config, mode: 'time', amount: 30, practiceWords: [] })}
-                className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 sm:gap-2", config.mode === 'time' ? "text-(--accent-color)" : "hover:text-(--main-color)")}
+                className={cn(
+                  toolbarButtonClass,
+                  'inline-flex items-center gap-1.5',
+                  config.mode === 'time' ? activeToolbarButtonClass : inactiveToolbarButtonClass
+                )}
               >
-                <Clock size={14} /> <span className="hidden xs:inline">уақыт</span>
+                <Clock size={13} />
+                <span>уақыт</span>
               </button>
               <button
                 onClick={() => onConfigChange({ ...config, mode: 'words', amount: 25, practiceWords: [] })}
-                className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 sm:gap-2", config.mode === 'words' ? "text-(--accent-color)" : "hover:text-(--main-color)")}
+                className={cn(
+                  toolbarButtonClass,
+                  'inline-flex items-center gap-1.5',
+                  config.mode === 'words' ? activeToolbarButtonClass : inactiveToolbarButtonClass
+                )}
               >
-                <Type size={14} /> <span className="hidden xs:inline">сөздер</span>
+                <Type size={13} />
+                <span>сөздер</span>
               </button>
             </div>
 
-            {/* Amount Selection */}
-            <div className="flex items-center gap-1 border-r border-(--sub-color)/20 pr-2 sm:pr-4">
-              {(config.mode === 'time' ? [15, 30, 60, 120] : [10, 25, 50, 100]).map((amt) => (
+            <span className="hidden h-6 w-px bg-(--sub-color)/15 sm:block" />
+
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              {amountOptions.map((amt) => (
                 <button
                   key={amt}
                   onClick={() => onConfigChange({ ...config, amount: amt, practiceWords: [] })}
-                  className={cn("px-2 sm:px-3 py-1.5 rounded-md transition-colors", config.amount === amt ? "text-(--accent-color)" : "hover:text-(--main-color)")}
+                  className={cn(
+                    toolbarButtonClass,
+                    config.amount === amt ? activeToolbarButtonClass : inactiveToolbarButtonClass
+                  )}
                 >
                   {amt}
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-4 pl-2 sm:pl-4">
+            <span className="hidden h-6 w-px bg-(--sub-color)/15 sm:block" />
+
+            <div className="flex items-center gap-0.5 rounded-full px-1 py-0.5 sm:gap-1.5">
               <button
                 onClick={() => setCaretStyle('line')}
-                className={cn("transition-colors", caretStyle === 'line' ? "text-(--main-color)" : "text-(--sub-color) hover:text-(--main-color)")}
+                className={cn(
+                  'inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors',
+                  caretStyle === 'line' ? 'text-(--main-color)' : 'text-(--sub-color) hover:text-(--main-color)'
+                )}
                 title="Сызық курсор"
               >
-                <Minus size={16} className="rotate-90" />
+                <Minus size={14} className="rotate-90" />
               </button>
               <button
                 onClick={() => setCaretStyle('block')}
-                className={cn("transition-colors", caretStyle === 'block' ? "text-(--main-color)" : "text-(--sub-color) hover:text-(--main-color)")}
+                className={cn(
+                  'inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors',
+                  caretStyle === 'block' ? 'text-(--main-color)' : 'text-(--sub-color) hover:text-(--main-color)'
+                )}
                 title="Блок курсор"
               >
-                <Square size={16} />
+                <Square size={14} />
               </button>
               <button
                 onClick={() => setCaretStyle('underline')}
-                className={cn("transition-colors", caretStyle === 'underline' ? "text-(--main-color)" : "text-(--sub-color) hover:text-(--main-color)")}
+                className={cn(
+                  'inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors',
+                  caretStyle === 'underline' ? 'text-(--main-color)' : 'text-(--sub-color) hover:text-(--main-color)'
+                )}
                 title="Астын сызу курсор"
               >
-                <Underline size={16} />
+                <Underline size={14} />
               </button>
             </div>
           </div>
@@ -347,31 +516,27 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
       )}
 
       {status !== 'finished' && (
-        <div className="relative">
-          {config.mode === 'time' && status === 'typing' && !zenMode && (
-            <div className="absolute -top-12 left-0 text-2xl font-bold text-[var(--accent-color)]">
-              {timeLeft}
-            </div>
-          )}
-          {config.mode === 'words' && status === 'typing' && !zenMode && (
-            <div className="absolute -top-12 left-0 text-2xl font-bold text-[var(--accent-color)]">
-              {userInput.split(' ').filter(w => w.length > 0).length}/{config.amount}
-            </div>
-          )}
+        <div className="flex w-full flex-col items-center gap-5 sm:gap-6">
           <div 
-            className="relative h-[116px] sm:h-[144px] overflow-hidden flex items-start cursor-text mt-4"
-            onClick={() => inputRef.current?.focus()}
-            style={{ fontSize: 'var(--text-size, inherit)', fontFamily: 'var(--font-typing)' }}
+            ref={typingViewportRef}
+            className="relative w-full cursor-text overflow-hidden"
+            onClick={focusTypingInput}
+            style={typingViewportStyle}
           >
             <AnimatePresence mode="wait">
               <motion.div 
                 key={targetText}
+                ref={textContainerRef}
                 initial={{ opacity: 0, filter: 'blur(8px)', y: 10 }}
-                animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                animate={{ opacity: 1, filter: 'blur(0px)', y: -scrollOffset }}
                 exit={{ opacity: 0, filter: 'blur(8px)', y: -10 }}
-                transition={{ duration: 0.25, ease: "easeInOut" }}
-                className="relative z-10 leading-[1.6] break-words w-full text-left select-none will-change-[transform,filter,opacity]"
-                style={{ transform: `translateY(-${scrollOffset}px)` }}
+                transition={{
+                  opacity: { duration: 0.25, ease: 'easeInOut' },
+                  filter: { duration: 0.25, ease: 'easeInOut' },
+                  y: { duration: 0.22, ease: 'easeOut' }
+                }}
+                className="absolute inset-x-0 top-0 z-10 mx-auto w-full max-w-[1040px] break-words text-left select-none will-change-[transform,filter,opacity] sm:px-4"
+                style={{ lineHeight: 1.45 }}
               >
                 <motion.div 
                   ref={caretRef}
@@ -389,12 +554,47 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
               </motion.div>
             </AnimatePresence>
 
+            <AnimatePresence>
+              {showFocusOverlay && (
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, backdropFilter: 'blur(0px)', scale: 0.985 }}
+                  animate={{ opacity: 1, backdropFilter: 'blur(10px)', scale: 1 }}
+                  exit={{ opacity: 0, backdropFilter: 'blur(0px)', scale: 0.985 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  onClick={focusTypingInput}
+                  className="absolute inset-0 z-20 flex items-center justify-center bg-(--bg-color)/28 text-center text-(--main-color)"
+                >
+                  <div className="rounded-3xl border border-(--sub-color)/12 bg-(--bg-color)/42 px-5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.16)]">
+                    <motion.div
+                      initial={{ y: 6, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.06, duration: 0.2, ease: 'easeOut' }}
+                      className="text-base font-medium sm:text-lg"
+                    >
+                      Теруді жалғастыру үшін осы жерді басыңыз
+                    </motion.div>
+                    <motion.div
+                      initial={{ y: 6, opacity: 0 }}
+                      animate={{ y: 0, opacity: 0.8 }}
+                      transition={{ delay: 0.1, duration: 0.2, ease: 'easeOut' }}
+                      className="mt-1 text-xs text-(--sub-color) sm:text-sm"
+                    >
+                      Немесе кез келген пернені басып фокусқа оралыңыз
+                    </motion.div>
+                  </div>
+                </motion.button>
+              )}
+            </AnimatePresence>
+
             <input
               ref={inputRef}
               type="text"
               className="absolute opacity-0 pointer-events-none"
               value={userInput}
               onChange={(e) => handleInput(e.target.value)}
+              onFocus={() => setHasTypingFocus(true)}
+              onBlur={() => setHasTypingFocus(false)}
               autoComplete="off"
               autoCapitalize="off"
               autoCorrect="off"
@@ -405,29 +605,36 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
       )}
 
       {(!zenMode || status !== 'typing') && (
-        <div className="flex flex-col items-center justify-center gap-6 mt-4">
-          <div className="flex gap-4">
+        <div className="mt-2 flex flex-col items-center justify-center gap-4 text-(--sub-color) sm:mt-4">
+          <div className="flex gap-3">
             <button
               onClick={reset}
-              className="p-4 text-[var(--sub-color)] hover:text-[var(--main-color)] transition-colors rounded-full"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-full text-(--sub-color) transition-colors hover:text-(--main-color)"
               title="Қайта бастау"
             >
-              <RefreshCw size={24} />
+              <RefreshCw size={22} />
             </button>
             
             {status === 'finished' && stats.missedWords.length > 0 && (
               <button
                 onClick={handlePracticeMissed}
-                className="p-4 text-[var(--sub-color)] hover:text-[var(--accent-color)] transition-colors rounded-full"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full text-(--sub-color) transition-colors hover:text-(--accent-color)"
                 title="Қате кеткен сөздермен жаттығу"
               >
-                <RotateCcw size={24} />
+                <RotateCcw size={22} />
               </button>
             )}
           </div>
 
-          <div className="text-xs text-[var(--sub-color)] flex gap-4 opacity-70">
-            <span><kbd className="bg-[var(--bg-color)] px-1.5 py-0.5 rounded border border-[var(--sub-color)]/30 font-mono">Tab</kbd> қайта бастау</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs opacity-75 sm:text-sm">
+            <span>
+              <kbd className="rounded-md bg-(--main-color)/8 px-2 py-1 font-mono text-[0.72rem] text-(--main-color)">tab</kbd>
+              <span className="ml-2">қайта бастау</span>
+            </span>
+            <span>
+              <kbd className="rounded-md bg-(--main-color)/8 px-2 py-1 font-mono text-[0.72rem] text-(--main-color)">шерту</kbd>
+              <span className="ml-2">мәтінді белсендіру</span>
+            </span>
           </div>
 
           {status === 'finished' && auth.currentUser && (
@@ -435,10 +642,10 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
               onClick={handleSaveScore}
               disabled={saving || saved || stats.wpm === 0}
               className={cn(
-                "flex items-center gap-2 px-6 py-2.5 rounded-md text-sm font-medium transition-all",
+                "mt-2 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all",
                 saved 
                   ? "text-[var(--sub-color)] cursor-default"
-                  : "bg-[var(--sub-color)] hover:bg-[var(--main-color)] text-[var(--bg-color)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  : "border border-(--sub-color)/15 bg-(--main-color) text-(--bg-color) hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               )}
             >
               <Save size={16} />
