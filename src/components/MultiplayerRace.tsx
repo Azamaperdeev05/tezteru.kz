@@ -1,12 +1,38 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, addDoc, doc, onSnapshot, updateDoc, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
 import { generateWords } from '../lib/words';
 import { Users, Copy, Check, Trophy, Loader2 } from 'lucide-react';
 
+type RaceStatus = 'waiting' | 'playing' | 'finished';
+
+type RacePlayer = {
+  displayName: string;
+  progress: number;
+  finished: boolean;
+  wpm: number;
+};
+
+type RaceRoom = {
+  status: RaceStatus;
+  targetText: string;
+  createdAt?: unknown;
+  startedAt?: number;
+  hostId?: string;
+  players: Record<string, RacePlayer>;
+};
+
+function getRoomHostId(room: RaceRoom | null) {
+  if (!room) {
+    return null;
+  }
+
+  return room.hostId ?? Object.keys(room.players ?? {})[0] ?? null;
+}
+
 export function MultiplayerRace() {
   const [roomId, setRoomId] = useState('');
-  const [roomData, setRoomData] = useState<any>(null);
+  const [roomData, setRoomData] = useState<RaceRoom | null>(null);
   const [joinId, setJoinId] = useState('');
   const [input, setInput] = useState('');
   const [copied, setCopied] = useState(false);
@@ -17,11 +43,15 @@ export function MultiplayerRace() {
     if (!roomId) return;
     const unsub = onSnapshot(doc(db, 'rooms', roomId), (docSnap) => {
       if (docSnap.exists()) {
-        setRoomData(docSnap.data());
+        setRoomData(docSnap.data() as RaceRoom);
       }
     });
     return () => unsub();
   }, [roomId]);
+
+  useEffect(() => {
+    setInput('');
+  }, [roomId, roomData?.status]);
 
   const generateRoomCode = async () => {
     let code = '';
@@ -43,6 +73,7 @@ export function MultiplayerRace() {
       await setDoc(doc(db, 'rooms', code), {
         status: 'waiting',
         targetText,
+        hostId: auth.currentUser.uid,
         createdAt: serverTimestamp(),
         players: {
           [auth.currentUser.uid]: {
@@ -54,6 +85,7 @@ export function MultiplayerRace() {
         }
       });
       setRoomId(code);
+      setInput('');
     } catch (e) {
       console.error(e);
     } finally {
@@ -84,6 +116,7 @@ export function MultiplayerRace() {
         }
       }, { merge: true });
       setRoomId(joinId);
+      setInput('');
     } catch (e) {
       console.error(e);
     } finally {
@@ -92,7 +125,8 @@ export function MultiplayerRace() {
   };
 
   const startGame = async () => {
-    if (!roomId) return;
+    if (!roomId || !roomData || !auth.currentUser) return;
+    if (getRoomHostId(roomData) !== auth.currentUser.uid) return;
     await updateDoc(doc(db, 'rooms', roomId), { 
       status: 'playing',
       startedAt: Date.now()
@@ -101,19 +135,20 @@ export function MultiplayerRace() {
 
   const handleInput = async (val: string) => {
     if (!roomData || roomData.status !== 'playing' || !auth.currentUser) return;
-    
-    const targetText = roomData.targetText;
-    let correct = '';
-    for(let i=0; i<val.length; i++) {
-      if (val[i] === targetText[i]) correct += val[i];
-      else break;
-    }
-    
-    setInput(correct);
 
-    const progress = Math.round((correct.length / targetText.length) * 100);
-    const finished = correct.length === targetText.length;
-    
+    const targetText = roomData.targetText;
+    const nextInput = val.slice(0, targetText.length);
+    let correctLength = 0;
+
+    while (correctLength < nextInput.length && nextInput[correctLength] === targetText[correctLength]) {
+      correctLength += 1;
+    }
+
+    setInput(nextInput);
+
+    const progress = Math.round((correctLength / targetText.length) * 100);
+    const finished = nextInput === targetText;
+
     let wpm = 0;
     if (finished && roomData.startedAt) {
       const timeElapsedMs = Date.now() - roomData.startedAt;
@@ -134,8 +169,8 @@ export function MultiplayerRace() {
 
     if (finished) {
       // Check if everyone is finished
-      const allFinished = Object.entries(roomData.players).every(([uid, p]: [string, any]) => 
-        uid === auth.currentUser?.uid ? true : p.finished
+      const allFinished = Object.entries(roomData.players).every(([uid, player]) => 
+        uid === auth.currentUser?.uid ? finished : player.finished
       );
       if (allFinished) {
         await updateDoc(doc(db, 'rooms', roomId), { status: 'finished' });
@@ -189,6 +224,10 @@ export function MultiplayerRace() {
 
   if (!roomData) return <div className="text-center text-[var(--sub-color)]">Күте тұрыңыз...</div>;
 
+  const currentUserId = auth.currentUser?.uid ?? null;
+  const hostId = getRoomHostId(roomData);
+  const isHost = Boolean(currentUserId && hostId === currentUserId);
+
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col gap-8 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-center bg-(--bg-color) p-4 rounded-xl border border-(--sub-color)/20 gap-4 sm:gap-0">
@@ -205,9 +244,15 @@ export function MultiplayerRace() {
           </div>
         </div>
         {roomData.status === 'waiting' && (
-          <button onClick={startGame} className="w-full sm:w-auto px-6 py-2 bg-(--accent-color) text-(--bg-color) rounded-full font-bold hover:opacity-90">
-            Жарысты бастау
-          </button>
+          isHost ? (
+            <button onClick={startGame} className="w-full sm:w-auto px-6 py-2 bg-(--accent-color) text-(--bg-color) rounded-full font-bold hover:opacity-90">
+              Жарысты бастау
+            </button>
+          ) : (
+            <div className="w-full sm:w-auto text-sm text-(--sub-color) text-center sm:text-right">
+              Жарысты бөлме ашқан адам бастайды
+            </div>
+          )
         )}
       </div>
 
@@ -240,7 +285,18 @@ export function MultiplayerRace() {
         <div className="mt-4 sm:mt-8 px-4">
           <div className="text-lg sm:text-2xl leading-relaxed mb-6 sm:mb-8 text-(--sub-color) select-none typing-font">
             {roomData.targetText.split('').map((char: string, i: number) => (
-              <span key={i} className={i < input.length ? 'text-(--main-color)' : ''}>{char}</span>
+              <span
+                key={i}
+                className={
+                  input[i] == null
+                    ? ''
+                    : input[i] === char
+                      ? 'text-(--main-color)'
+                      : 'text-(--error-color)'
+                }
+              >
+                {char}
+              </span>
             ))}
           </div>
           <input
@@ -248,8 +304,11 @@ export function MultiplayerRace() {
             value={input}
             onChange={e => handleInput(e.target.value)}
             className="w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-2xl typing-font bg-(--bg-color) border-2 border-(--sub-color) rounded-xl text-(--main-color) focus:border-(--accent-color) outline-none"
-            placeholder="Осында жазыңыз..."
             autoFocus
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
           />
         </div>
       )}
