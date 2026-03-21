@@ -15,6 +15,7 @@ import {
   rememberRecentTheme,
   toggleFavoriteTheme,
 } from '../lib/appearance';
+import { getStoredSoundTheme, SOUND_THEMES, soundEngine, type SoundThemeId } from '../lib/sounds';
 import { cn } from '../lib/utils';
 
 type SettingsTab = 'appearance' | 'typing' | 'arcade' | 'account';
@@ -47,12 +48,7 @@ export function Settings() {
     }
     return true;
   });
-  const [soundTheme, setSoundTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('soundTheme') || 'mechanical';
-    }
-    return 'mechanical';
-  });
+  const [soundTheme, setSoundTheme] = useState<SoundThemeId>(getStoredSoundTheme);
   const [textSize, setTextSize] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('textSize') || 'medium';
@@ -208,6 +204,11 @@ export function Settings() {
   const handleTypingFontSelect = (fontId: string) => {
     setTypingFont(fontId);
     setMobileSheet(null);
+  };
+
+  const handleSoundThemeSelect = (themeId: SoundThemeId) => {
+    setSoundTheme(themeId);
+    soundEngine.previewTheme(themeId);
   };
 
   return (
@@ -498,20 +499,21 @@ export function Settings() {
             </section>
 
             <section className="flex flex-col gap-4">
-              <h3 className="text-lg font-bold text-[var(--main-color)] flex items-center gap-2">
-                <Volume2 size={20} className="text-[var(--accent-color)]" />
-                Дыбыс эффектілері
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  { id: 'mechanical', name: 'Механикалық' },
-                  { id: 'typewriter', name: 'Жазу машинкасы' },
-                  { id: 'soft', name: 'Жұмсақ' },
-                  { id: 'game', name: 'Ойын' },
-                ].map((soundOption) => (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--main-color)] flex items-center gap-2">
+                    <Volume2 size={20} className="text-[var(--accent-color)]" />
+                    Дыбыс эффектілері
+                  </h3>
+                  <p className="text-sm text-[var(--sub-color)]">Карточканы басқанда сол theme-нің keypress preview-і бірден ойнайды.</p>
+                </div>
+                <span className="text-xs font-medium px-3 py-1 rounded-full bg-[var(--main-color)]/6 text-[var(--sub-color)]">{SOUND_THEMES.length} sound</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {SOUND_THEMES.map((soundOption) => (
                   <button
                     key={soundOption.id}
-                    onClick={() => setSoundTheme(soundOption.id)}
+                    onClick={() => handleSoundThemeSelect(soundOption.id)}
                     className={cn(
                       'px-4 py-3 rounded-2xl border transition-all text-left',
                       soundTheme === soundOption.id
@@ -519,7 +521,14 @@ export function Settings() {
                         : 'border-[var(--sub-color)]/20 text-[var(--sub-color)] hover:border-[var(--sub-color)]/45'
                     )}
                   >
-                    {soundOption.name}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium">{soundOption.name}</div>
+                        <div className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--sub-color)]">{soundOption.badge}</div>
+                        <div className="mt-2 text-sm text-[var(--sub-color)] leading-relaxed">{soundOption.description}</div>
+                      </div>
+                      {soundTheme === soundOption.id && <Check size={16} className="shrink-0 text-[var(--accent-color)]" />}
+                    </div>
                   </button>
                 ))}
               </div>
