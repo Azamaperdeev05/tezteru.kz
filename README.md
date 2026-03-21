@@ -13,7 +13,7 @@
       <img src="https://img.shields.io/badge/Live_Demo-Visit_Site-2ecc71?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Live Demo">
     </a>
     <img src="https://img.shields.io/badge/Status-Beta-orange?style=for-the-badge" alt="Status">
-    <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
+    <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=for-the-badge" alt="License">
   </p>
 
   <p align="center">
@@ -41,7 +41,7 @@
 *   **📱 PWA Қолданысы:** Сайтты Android, iOS және Windows құрылғыларына жеке қолданба ретінде орнату мүмкіндігі.
 *   **🔐 Google One Tap:** Тіркелудің ең оңай және жылдам жолы.
 *   **🎮 Жарыс режимі (Multiplayer):** Нақты уақыт режимінде достарыңызбен жарысыңыз.
-*   **🎨 Теңшелетін тақырыптар:** Көзді шаршатпайтын 10-нан астам түсті тақырыптар.
+*   **🎨 Теңшелетін тақырыптар:** 70+-дан астам contrast-түзетілген theme, favorite/recent және mobile picker қолдауы.
 *   **📊 Профиль мен Статистика:** WPM, Accuracy және жетістіктеріңізді бақылаңыз.
 
 ---

@@ -238,7 +238,7 @@ export function MultiplayerRace() {
 
       {roomData.status === 'playing' && (
         <div className="mt-4 sm:mt-8 px-4">
-          <div className="text-lg sm:text-2xl font-mono leading-relaxed mb-6 sm:mb-8 text-(--sub-color) select-none">
+          <div className="text-lg sm:text-2xl leading-relaxed mb-6 sm:mb-8 text-(--sub-color) select-none typing-font">
             {roomData.targetText.split('').map((char: string, i: number) => (
               <span key={i} className={i < input.length ? 'text-(--main-color)' : ''}>{char}</span>
             ))}
@@ -247,7 +247,7 @@ export function MultiplayerRace() {
             type="text"
             value={input}
             onChange={e => handleInput(e.target.value)}
-            className="w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-2xl font-mono bg-(--bg-color) border-2 border-(--sub-color) rounded-xl text-(--main-color) focus:border-(--accent-color) outline-none"
+            className="w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-2xl typing-font bg-(--bg-color) border-2 border-(--sub-color) rounded-xl text-(--main-color) focus:border-(--accent-color) outline-none"
             placeholder="Осында жазыңыз..."
             autoFocus
           />

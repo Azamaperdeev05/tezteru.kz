@@ -1,36 +1,14 @@
 import { Palette } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { THEMES, applyTheme, getStoredThemeId, rememberRecentTheme } from '../lib/appearance';
 import { cn } from '../lib/utils';
 
-const THEMES = [
-  { id: 'light', name: 'Light' },
-  { id: 'dark', name: 'Dark' },
-  { id: 'dracula', name: 'Dracula' },
-  { id: 'matrix', name: 'Matrix' },
-  { id: 'nord', name: 'Nord' },
-  { id: 'serika-dark', name: 'Serika Dark' },
-];
-
 export function ThemeToggle() {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 'dark';
-    }
-    return 'dark';
-  });
+  const [theme, setTheme] = useState(getStoredThemeId);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.removeAttribute('data-theme');
-
-    if (theme === 'light' || theme === 'dark') {
-      root.classList.add(theme);
-    } else {
-      root.setAttribute('data-theme', theme);
-    }
-    localStorage.setItem('theme', theme);
+    applyTheme(theme);
   }, [theme]);
 
   return (
@@ -46,11 +24,12 @@ export function ThemeToggle() {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-40 py-2 bg-[var(--bg-color)] border border-[var(--sub-color)]/20 rounded-lg shadow-xl z-20">
+          <div className="absolute right-0 mt-2 w-52 max-h-80 overflow-y-auto py-2 bg-[var(--bg-color)] border border-[var(--sub-color)]/20 rounded-lg shadow-xl z-20">
             {THEMES.map((t) => (
               <button
                 key={t.id}
                 onClick={() => {
+                  rememberRecentTheme(t.id);
                   setTheme(t.id);
                   setIsOpen(false);
                 }}

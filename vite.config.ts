@@ -17,8 +17,8 @@ export default defineConfig(({mode}) => {
           name: 'tezteru.kz',
           short_name: 'tezteru',
           description: 'Қазақша жылдам жазуға арналған тренажер',
-          theme_color: '#eeebe2',
-          background_color: '#eeebe2',
+          theme_color: '#323437',
+          background_color: '#323437',
           display: 'standalone',
           orientation: 'portrait',
           scope: '/',
@@ -65,7 +65,7 @@ export default defineConfig(({mode}) => {
               options: {
                 cacheName: 'gstatic-fonts-cache',
                 expiration: {
-                  maxEntries: 10,
+                  maxEntries: 60,
                   maxAgeSeconds: 60 * 60 * 24 * 365
                 },
                 cacheableResponse: {
@@ -83,6 +83,33 @@ export default defineConfig(({mode}) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
+      },
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) {
+              return;
+            }
+
+            if (id.includes('firebase')) {
+              return 'firebase';
+            }
+
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'charts';
+            }
+
+            if (id.includes('framer-motion') || id.includes('\\motion\\') || id.includes('/motion/')) {
+              return 'motion';
+            }
+
+            if (id.includes('react')) {
+              return 'react-vendor';
+            }
+          },
+        },
       },
     },
     server: {

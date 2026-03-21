@@ -1,52 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Lexend Deca', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-typing: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
   --font-mono: 'Roboto Mono', 'Fira Code', 'Courier New', monospace;
 }
 
 @layer base {
   :root {
-    --bg-color: #eeebe2;
-    --main-color: #080909;
-    --sub-color: #99947f;
-    --accent-color: #d9736f;
-    --error-color: #d9736f;
-    --error-extra-color: #b55f5c;
-  }
-  .dark {
-    --bg-color: #323437;
-    --main-color: #d1d0c5;
-    --sub-color: #646669;
-    --accent-color: #e2b714;
-    --error-color: #ca4754;
-    --error-extra-color: #7e2a33;
-  }
-  [data-theme="dracula"] {
-    --bg-color: #282a36;
-    --main-color: #f8f8f2;
-    --sub-color: #6272a4;
-    --accent-color: #ff79c6;
-    --error-color: #ff5555;
-    --error-extra-color: #bd2c40;
-  }
-  [data-theme="matrix"] {
-    --bg-color: #000000;
-    --main-color: #00ff41;
-    --sub-color: #008f11;
-    --accent-color: #d1ffcd;
-    --error-color: #ff003c;
-    --error-extra-color: #8f0022;
-  }
-  [data-theme="nord"] {
-    --bg-color: #2e3440;
-    --main-color: #d8dee9;
-    --sub-color: #4c566a;
-    --accent-color: #88c0d0;
-    --error-color: #bf616a;
-    --error-extra-color: #8f3b43;
-  }
-  [data-theme="serika-dark"] {
     --bg-color: #323437;
     --main-color: #d1d0c5;
     --sub-color: #646669;
@@ -60,7 +21,11 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, font-family 0.2s ease;
+  }
+
+  .typing-font {
+    font-family: var(--font-typing);
   }
   
   .zen-mode-active header,

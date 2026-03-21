@@ -1,64 +1,33 @@
-import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { db } from '../firebase';
-import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
-
-interface Score {
-  id: string;
-  uid: string;
-  displayName: string;
-  photoURL?: string;
-  wpm: number;
-  accuracy: number;
-  mode: string;
-  amount: number;
-  createdAt: any;
-}
+import { fetchLeaderboardScores, StoredScore } from '../lib/scores';
 
 export function Leaderboard() {
-  const [scores, setScores] = useState<Score[]>([]);
+  const [scores, setScores] = useState<StoredScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'time' | 'words'>('time');
   const [amount, setAmount] = useState<number>(30);
+  const [usedFallback, setUsedFallback] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    // Fetch more scores to ensure we get enough unique users
-    const q = query(
-      collection(db, 'scores'),
-      orderBy('wpm', 'desc'),
-      limit(200)
-    );
+    let active = true;
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const uniqueScores: Score[] = [];
-        const seenUids = new Set<string>();
+    const loadScores = async () => {
+      setLoading(true);
+      const result = await fetchLeaderboardScores(mode, amount, 10);
 
-        snapshot.forEach((doc) => {
-          const data = doc.data() as Score;
-          if (data.mode !== mode || data.amount !== amount) return;
-          
-          // Only keep the first (highest) score for each user in this category
-          if (!seenUids.has(data.uid)) {
-            seenUids.add(data.uid);
-            uniqueScores.push({ id: doc.id, ...data });
-          }
-        });
-
-        // Take only the top 10 unique users
-        setScores(uniqueScores.slice(0, 10));
-        setLoading(false);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, 'scores');
+      if (active) {
+        setScores(result.scores);
+        setUsedFallback(result.usedFallback);
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    loadScores();
+
+    return () => {
+      active = false;
+    };
   }, [mode, amount]);
 
   return (
@@ -105,6 +74,12 @@ export function Leaderboard() {
           </div>
         </div>
       </div>
+
+      {usedFallback && (
+        <div className="mb-4 rounded-lg border border-[var(--accent-color)]/20 bg-[var(--accent-color)]/8 px-4 py-3 text-sm text-[var(--sub-color)]">
+          Leaderboard fallback сұраныспен жүктелді. Индекс deploy болғанда бұл бет азырақ Firestore оқиды.
+        </div>
+      )}
       
       {loading ? (
         <div className="p-8 text-center text-[var(--sub-color)] text-sm">Нәтижелер жүктелуде...</div>

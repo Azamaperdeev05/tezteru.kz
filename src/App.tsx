@@ -1,22 +1,40 @@
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { Keyboard, Trophy, User as UserIcon, Volume2, VolumeX, Gamepad2, Users, Settings as SettingsIcon, Download, BarChart3 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { Keyboard, Trophy, User as UserIcon, Volume2, VolumeX, Gamepad2, Users, Settings as SettingsIcon, Download, BarChart3, Github, HeartHandshake, Mail, Code2 } from 'lucide-react';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Link, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Auth } from './components/Auth';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { Leaderboard } from './components/Leaderboard';
-import { Profile } from './components/Profile';
 import { TypingTest } from './components/TypingTest';
-import { ArcadeMode } from './components/ArcadeMode';
-import { MultiplayerRace } from './components/MultiplayerRace';
-import { Settings } from './components/Settings';
-import { StatsPage } from './components/StatsPage';
 import { auth } from './firebase';
 import { TestConfig } from './hooks/useTypingTest';
+import { SITE_LINKS } from './lib/site-links';
 import { cn } from './lib/utils';
 
-function AnimatedRoutes({ user, config, setConfig, soundEnabled }: any) {
+const Leaderboard = lazy(() => import('./components/Leaderboard').then((module) => ({ default: module.Leaderboard })));
+const Profile = lazy(() => import('./components/Profile').then((module) => ({ default: module.Profile })));
+const ArcadeMode = lazy(() => import('./components/ArcadeMode').then((module) => ({ default: module.ArcadeMode })));
+const MultiplayerRace = lazy(() => import('./components/MultiplayerRace').then((module) => ({ default: module.MultiplayerRace })));
+const Settings = lazy(() => import('./components/Settings').then((module) => ({ default: module.Settings })));
+const StatsPage = lazy(() => import('./components/StatsPage').then((module) => ({ default: module.StatsPage })));
+
+function RouteLoader() {
+  return <div className="p-8 text-center text-[var(--sub-color)]">Бет жүктелуде...</div>;
+}
+
+function NavIconLink({ to, title, icon: Icon }: { to: string; title: string; icon: typeof Gamepad2 }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) => cn("hover:text-(--main-color) transition-colors p-1.5", isActive && "text-(--main-color)")}
+      title={title}
+    >
+      <Icon size={20} />
+    </NavLink>
+  );
+}
+
+function AnimatedRoutes({ user, config, setConfig, soundEnabled }: { user: User | null; config: TestConfig; setConfig: (config: TestConfig) => void; soundEnabled: boolean; }) {
   const location = useLocation();
 
   return (
@@ -29,15 +47,17 @@ function AnimatedRoutes({ user, config, setConfig, soundEnabled }: any) {
         transition={{ duration: 0.2 }}
         className="w-full flex-1 flex flex-col justify-center"
       >
-        <Routes location={location}>
-          <Route path="/" element={<TypingTest config={config} onConfigChange={setConfig} soundEnabled={soundEnabled} />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/profile" element={user ? <Profile user={user} /> : <Navigate to="/" />} />
-          <Route path="/stats" element={<StatsPage />} />
-          <Route path="/arcade" element={<ArcadeMode />} />
-          <Route path="/multiplayer" element={<MultiplayerRace />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
+        <Suspense fallback={<RouteLoader />}>
+          <Routes location={location}>
+            <Route path="/" element={<TypingTest config={config} onConfigChange={setConfig} soundEnabled={soundEnabled} />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/profile" element={user ? <Profile user={user} /> : <Navigate to="/" />} />
+            <Route path="/stats" element={<StatsPage />} />
+            <Route path="/arcade" element={<ArcadeMode />} />
+            <Route path="/multiplayer" element={<MultiplayerRace />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </Suspense>
       </motion.div>
     </AnimatePresence>
   );
@@ -110,49 +130,13 @@ function AppContent() {
           
           <div className="flex items-center gap-2 sm:gap-6 overflow-x-auto no-scrollbar py-2 ml-4">
             <div className="flex items-center gap-2 sm:gap-4 text-(--sub-color)">
-              <Link 
-                to="/arcade"
-                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/arcade' && "text-(--main-color)")}
-                title="Аркада"
-              >
-                <Gamepad2 size={20} />
-              </Link>
-              <Link 
-                to="/multiplayer"
-                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/multiplayer' && "text-(--main-color)")}
-                title="Жарыс"
-              >
-                <Users size={20} />
-              </Link>
-              <Link 
-                to="/leaderboard"
-                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/leaderboard' && "text-(--main-color)")}
-                title="Көшбасшылар тақтасы"
-              >
-                <Trophy size={20} />
-              </Link>
-              <Link 
-                to="/stats"
-                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/stats' && "text-(--main-color)")}
-                title="Статистика"
-              >
-                <BarChart3 size={20} />
-              </Link>
-              <Link 
-                to="/settings"
-                className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/settings' && "text-(--main-color)")}
-                title="Баптаулар"
-              >
-                <SettingsIcon size={20} />
-              </Link>
+              <NavIconLink to="/arcade" title="Аркада" icon={Gamepad2} />
+              <NavIconLink to="/multiplayer" title="Жарыс" icon={Users} />
+              <NavIconLink to="/leaderboard" title="Көшбасшылар тақтасы" icon={Trophy} />
+              <NavIconLink to="/stats" title="Статистика" icon={BarChart3} />
+              <NavIconLink to="/settings" title="Баптаулар" icon={SettingsIcon} />
               {user && (
-                <Link 
-                  to="/profile"
-                  className={cn("hover:text-(--main-color) transition-colors p-1.5", window.location.pathname === '/profile' && "text-(--main-color)")}
-                  title="Профиль"
-                >
-                  <UserIcon size={20} />
-                </Link>
+                <NavIconLink to="/profile" title="Профиль" icon={UserIcon} />
               )}
               <button 
                 onClick={() => setSoundEnabled(!soundEnabled)}
@@ -177,18 +161,37 @@ function AppContent() {
           </div>
         </header>
 
-        <main className="flex-1 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col justify-center">
+        <main className="flex-1 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex flex-col justify-center">
           <AnimatedRoutes user={user} config={config} setConfig={setConfig} soundEnabled={soundEnabled} />
         </main>
         
-        <footer className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex justify-between items-center text-(--sub-color) text-sm">
-          <div className="flex gap-4">
-            <span className="hover:text-(--main-color) cursor-pointer transition-colors">✉ байланыс</span>
-            <span className="hover:text-(--main-color) cursor-pointer transition-colors">⛑ қолдау</span>
-            <span className="hover:text-(--main-color) cursor-pointer transition-colors">{"</>"} github</span>
+        <footer className="w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6 text-(--sub-color) text-sm border-t border-(--sub-color)/10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <a href={SITE_LINKS.donate} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-3 hover:border-(--accent-color)/40 hover:text-(--main-color) transition-colors">
+              <HeartHandshake size={18} className="text-(--accent-color)" />
+              <span>Донат</span>
+            </a>
+            <a href={SITE_LINKS.githubProfile} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-3 hover:border-(--accent-color)/40 hover:text-(--main-color) transition-colors">
+              <Github size={18} className="text-(--accent-color)" />
+              <span>GitHub профилі</span>
+            </a>
+            <a href={SITE_LINKS.repository} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-3 hover:border-(--accent-color)/40 hover:text-(--main-color) transition-colors">
+              <Code2 size={18} className="text-(--accent-color)" />
+              <span>Жоба коды</span>
+            </a>
+            <a href={SITE_LINKS.emailHref} className="flex items-center gap-3 rounded-xl border border-(--sub-color)/15 bg-(--main-color)/4 px-4 py-3 hover:border-(--accent-color)/40 hover:text-(--main-color) transition-colors">
+              <Mail size={18} className="text-(--accent-color)" />
+              <span>{SITE_LINKS.email}</span>
+            </a>
           </div>
-          <div className="flex gap-4">
-            <span className="hover:text-(--main-color) cursor-pointer transition-colors">v2.0.0</span>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-4">
+              <a href={SITE_LINKS.donate} target="_blank" rel="noreferrer" className="hover:text-(--main-color) transition-colors">Қолдау</a>
+              <a href={SITE_LINKS.githubProfile} target="_blank" rel="noreferrer" className="hover:text-(--main-color) transition-colors">GitHub</a>
+              <a href={SITE_LINKS.repository} target="_blank" rel="noreferrer" className="hover:text-(--main-color) transition-colors">Repository</a>
+              <a href={SITE_LINKS.emailHref} className="hover:text-(--main-color) transition-colors">Байланыс</a>
+            </div>
+            <div className="text-[var(--sub-color)]/80">v2.0.0</div>
           </div>
         </footer>
       </div>

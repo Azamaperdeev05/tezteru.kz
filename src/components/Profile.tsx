@@ -1,53 +1,37 @@
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { User as UserIcon, Activity, TrendingUp, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { db } from '../firebase';
-import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { fetchUserScores, StoredScore } from '../lib/scores';
 
 interface ProfileProps {
   user: User;
 }
 
-interface Score {
-  id: string;
-  wpm: number;
-  accuracy: number;
-  mode: string;
-  amount: number;
-  createdAt: any;
-}
-
 export function Profile({ user }: ProfileProps) {
-  const [scores, setScores] = useState<Score[]>([]);
+  const [scores, setScores] = useState<StoredScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usedFallback, setUsedFallback] = useState(false);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'scores'),
-      where('uid', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
+    let active = true;
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const newScores: Score[] = [];
-        snapshot.forEach((doc) => {
-          newScores.push({ id: doc.id, ...doc.data() } as Score);
-        });
-        setScores(newScores.reverse()); // Chronological for chart
-        setLoading(false);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, 'scores');
+    const loadScores = async () => {
+      setLoading(true);
+      const result = await fetchUserScores(user.uid, 50);
+
+      if (active) {
+        setScores([...result.scores].reverse());
+        setUsedFallback(result.usedFallback);
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    loadScores();
+
+    return () => {
+      active = false;
+    };
   }, [user.uid]);
 
   if (loading) {
@@ -104,6 +88,12 @@ export function Profile({ user }: ProfileProps) {
           <div className="text-4xl font-bold text-[var(--main-color)]">{testsCompleted}</div>
         </div>
       </div>
+
+      {usedFallback && (
+        <div className="mb-6 rounded-lg border border-[var(--accent-color)]/20 bg-[var(--accent-color)]/8 px-4 py-3 text-sm text-[var(--sub-color)]">
+          Профиль деректері fallback режимде жүктелді. Firestore индексі deploy болғаннан кейін бұл ескерту жоғалады.
+        </div>
+      )}
 
       {scores.length > 0 ? (
         <div className="h-[300px] w-full bg-[var(--main-color)]/5 p-4 rounded-lg">

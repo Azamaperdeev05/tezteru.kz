@@ -173,7 +173,7 @@ export function ArcadeMode() {
             style={{ left: `${word.x}%`, top: `${word.y}%`, transform: 'translateX(-50%)' }}
           >
             <span className="text-2xl" style={{ transform: 'rotate(90deg)' }}>🏎️</span>
-            <span className="text-xl font-mono font-bold text-[var(--main-color)] bg-[var(--bg-color)]/80 px-2 rounded-md backdrop-blur-sm">{word.text}</span>
+            <span className="text-xl font-bold text-[var(--main-color)] bg-[var(--bg-color)]/80 px-2 rounded-md backdrop-blur-sm typing-font">{word.text}</span>
           </div>
         ))}
       </div>
@@ -184,7 +184,7 @@ export function ArcadeMode() {
         onChange={handleInput}
         disabled={!isPlaying}
         placeholder={isPlaying ? "Сөзді жазыңыз..." : ""}
-        className="w-full max-w-md px-6 py-4 text-2xl font-mono bg-transparent border-2 border-[var(--sub-color)] rounded-xl text-center text-[var(--main-color)] focus:border-[var(--accent-color)] outline-none transition-colors"
+        className="w-full max-w-md px-6 py-4 text-2xl typing-font bg-transparent border-2 border-[var(--sub-color)] rounded-xl text-center text-[var(--main-color)] focus:border-[var(--accent-color)] outline-none transition-colors"
         autoFocus
       />
     </div>

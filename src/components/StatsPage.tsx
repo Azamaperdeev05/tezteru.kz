@@ -1,41 +1,37 @@
 import { useEffect, useState } from 'react';
-import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 import { DetailedStats } from './DetailedStats';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { BarChart as BarChartIcon, History, Target, TrendingUp } from 'lucide-react';
-
-interface Score {
-  id: string;
-  wpm: number;
-  accuracy: number;
-  consistency: number;
-  createdAt: any;
-  errorMap?: Record<string, number>;
-}
+import { fetchUserScores, StoredScore } from '../lib/scores';
 
 export function StatsPage() {
-  const [scores, setScores] = useState<Score[]>([]);
+  const [scores, setScores] = useState<StoredScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usedFallback, setUsedFallback] = useState(false);
   const user = auth.currentUser;
 
   useEffect(() => {
     if (!user) return;
 
-    const q = query(
-      collection(db, 'scores'),
-      where('uid', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(100)
-    );
+    let active = true;
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Score));
-      setScores(data.reverse()); // Chart үшін хронологиялық рет
-      setLoading(false);
-    });
+    const loadScores = async () => {
+      setLoading(true);
+      const result = await fetchUserScores(user.uid, 100);
 
-    return () => unsubscribe();
+      if (active) {
+        setScores([...result.scores].reverse());
+        setUsedFallback(result.usedFallback);
+        setLoading(false);
+      }
+    };
+
+    loadScores();
+
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   if (!user) {
@@ -70,6 +66,12 @@ export function StatsPage() {
           <BarChartIcon className="text-[var(--accent-color)]" /> Статистика
         </h2>
       </div>
+
+      {usedFallback && (
+        <div className="rounded-lg border border-[var(--accent-color)]/20 bg-[var(--accent-color)]/8 px-4 py-3 text-sm text-[var(--sub-color)]">
+          Статистика fallback режимде жүктелді. Firestore индексі deploy болған соң бұл режим автоматты түрде өшеді.
+        </div>
+      )}
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -121,7 +123,7 @@ export function StatsPage() {
           <h3 className="text-lg font-bold text-[var(--main-color)]">Соңғы тест мәліметтері</h3>
           <DetailedStats stats={{
             wpm: lastScore.wpm,
-            rawWpm: lastScore.wpm, // Пример, если raw не сохраняется отдельно
+            rawWpm: lastScore.rawWpm ?? lastScore.wpm,
             accuracy: lastScore.accuracy,
             consistency: lastScore.consistency || 0,
             errorMap: lastScore.errorMap || {}

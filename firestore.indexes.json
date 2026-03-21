@@ -46,6 +46,24 @@
   //     ]
   //   },
   // ]
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "scores",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "mode": "ASCENDING" },
+        { "fieldPath": "createdAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "scores",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mode", "mode": "ASCENDING" },
+        { "fieldPath": "amount", "mode": "ASCENDING" },
+        { "fieldPath": "wpm", "mode": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }
