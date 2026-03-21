@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { GoogleAuthProvider, signInWithCredential, User } from 'firebase/auth';
 import { auth } from '../firebase';
+import { supportsGoogleOneTap } from '../lib/auth-browser';
 
 declare global {
   interface Window {
@@ -12,6 +13,7 @@ export function useGoogleOneTap(user: User | null) {
   useEffect(() => {
     // If user is already signed in, don't show the prompt
     if (user) return;
+    if (!supportsGoogleOneTap()) return;
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) return;
@@ -30,8 +32,9 @@ export function useGoogleOneTap(user: User | null) {
             console.error('Error signing in with Google One Tap:', error);
           }
         },
-        auto_select: true, // Enable One Tap automatically if possible
-        cancel_on_tap_outside: false,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        context: 'signin',
       });
 
       window.google.accounts.id.prompt((notification: any) => {
@@ -46,6 +49,9 @@ export function useGoogleOneTap(user: User | null) {
     // Try to init, if not ready, wait a bit
     if (window.google?.accounts?.id) {
       initOneTap();
+      return () => {
+        window.google?.accounts?.id?.cancel();
+      };
     } else {
       const interval = setInterval(() => {
         if (window.google?.accounts?.id) {
@@ -53,7 +59,10 @@ export function useGoogleOneTap(user: User | null) {
           clearInterval(interval);
         }
       }, 1000);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        window.google?.accounts?.id?.cancel();
+      };
     }
   }, [user]);
 }
