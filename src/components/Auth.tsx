@@ -1,7 +1,8 @@
-import { signInWithPopup, signOut, User, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
-import { LogIn, LogOut } from 'lucide-react';
+import { signInWithPopup, User } from 'firebase/auth';
+import { LogIn } from 'lucide-react';
 import { auth, googleProvider } from '../firebase';
 import { useGoogleOneTap } from '../hooks/useGoogleOneTap';
+import { Link } from 'react-router-dom';
 
 interface AuthProps {
   user: User | null;
@@ -19,18 +20,13 @@ export function Auth({ user }: AuthProps) {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Error signing out', error);
-    }
-  };
-
   if (user) {
     return (
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
+      <Link
+        to="/profile"
+        className="flex items-center gap-2 rounded-full px-2 py-1 text-(--main-color) transition-colors hover:bg-(--main-color)/6"
+        title="Профильді ашу"
+      >
           {user.photoURL && (
             <img
               src={user.photoURL}
@@ -42,15 +38,7 @@ export function Auth({ user }: AuthProps) {
           <span className="text-sm font-medium hidden sm:inline-block text-(--main-color)">
             {user.displayName}
           </span>
-        </div>
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-(--error-color) hover:bg-(--error-color)/10 rounded-full transition-colors"
-        >
-          <LogOut size={16} />
-          <span className="hidden sm:inline-block">Шығу</span>
-        </button>
-      </div>
+      </Link>
     );
   }
 

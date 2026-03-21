@@ -1,5 +1,5 @@
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { Keyboard, Trophy, User as UserIcon, Volume2, VolumeX, Gamepad2, Users, Settings as SettingsIcon, Download, BarChart3, Github, HeartHandshake, Mail, Code2 } from 'lucide-react';
+import { Keyboard, Trophy, Volume2, VolumeX, Gamepad2, Users, Settings as SettingsIcon, Download, BarChart3, Github, HeartHandshake, Mail, Code2 } from 'lucide-react';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -55,7 +55,7 @@ function AnimatedRoutes({ user, config, setConfig, soundEnabled }: { user: User 
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/arcade" element={<ArcadeMode />} />
             <Route path="/multiplayer" element={<MultiplayerRace />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings" element={<Settings user={user} />} />
           </Routes>
         </Suspense>
       </motion.div>
@@ -135,9 +135,6 @@ function AppContent() {
               <NavIconLink to="/leaderboard" title="Көшбасшылар тақтасы" icon={Trophy} />
               <NavIconLink to="/stats" title="Статистика" icon={BarChart3} />
               <NavIconLink to="/settings" title="Баптаулар" icon={SettingsIcon} />
-              {user && (
-                <NavIconLink to="/profile" title="Профиль" icon={UserIcon} />
-              )}
               <button 
                 onClick={() => setSoundEnabled(!soundEnabled)}
                 className="hover:text-(--main-color) transition-colors p-1.5"

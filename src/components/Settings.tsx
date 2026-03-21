@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, Check, ChevronRight, Clock3, Gamepad2, Monitor, Palette, Settings as SettingsIcon, Shield, Star, Type, Volume2, X } from 'lucide-react';
+import { User, signOut } from 'firebase/auth';
+import { Bell, Check, ChevronRight, Clock3, Gamepad2, LogOut, Monitor, Palette, Settings as SettingsIcon, Shield, Star, Type, Volume2, X } from 'lucide-react';
 import {
   THEMES,
   TYPING_FONT_OPTIONS,
@@ -15,6 +16,7 @@ import {
   rememberRecentTheme,
   toggleFavoriteTheme,
 } from '../lib/appearance';
+import { auth } from '../firebase';
 import { getStoredSoundTheme, SOUND_THEMES, soundEngine, type SoundThemeId } from '../lib/sounds';
 import { cn } from '../lib/utils';
 
@@ -33,7 +35,11 @@ const TABS: Array<{ id: SettingsTab; label: string; icon: typeof Palette }> = [
 
 const TOGGLE_ROW_CLASS = 'flex items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl border border-[var(--sub-color)]/20 cursor-pointer hover:bg-[var(--sub-color)]/5 transition-colors';
 
-export function Settings() {
+type SettingsProps = {
+  user?: User | null;
+};
+
+export function Settings({ user = null }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const [themeFilter, setThemeFilter] = useState<ThemeFilter>('all');
   const [interfaceFont, setInterfaceFont] = useState(getStoredInterfaceFontId);
@@ -204,6 +210,14 @@ export function Settings() {
   const handleTypingFontSelect = (fontId: string) => {
     setTypingFont(fontId);
     setMobileSheet(null);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error signing out', error);
+    }
   };
 
   const handleSoundThemeSelect = (themeId: SoundThemeId) => {
@@ -685,6 +699,48 @@ export function Settings() {
                 </label>
               </div>
             </section>
+
+            {user && (
+              <section className="flex flex-col gap-4 border-t border-[var(--sub-color)]/15 pt-6">
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--main-color)] flex items-center gap-2">
+                    <Shield size={20} className="text-[var(--accent-color)]" />
+                    Аккаунт
+                  </h3>
+                  <p className="text-sm text-[var(--sub-color)]">Профильге кіру header-дегі avatar арқылы жасалады. Шығу батырмасы осында әдейі төменге жылжытылды.</p>
+                </div>
+
+                <div className="rounded-2xl border border-[var(--sub-color)]/20 bg-[var(--main-color)]/4 p-4 sm:p-5">
+                  <div className="flex items-center gap-3">
+                    {user.photoURL ? (
+                      <img
+                        src={user.photoURL}
+                        alt={user.displayName || 'User'}
+                        className="h-12 w-12 rounded-full border border-[var(--sub-color)]/20"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[var(--sub-color)]/20 bg-[var(--main-color)]/8 text-lg font-semibold text-[var(--main-color)]">
+                        {(user.displayName || 'U').slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-medium text-[var(--main-color)] truncate">{user.displayName || 'Пайдаланушы'}</div>
+                      <div className="text-sm text-[var(--sub-color)] truncate">{user.email}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="mt-2 flex items-center justify-center gap-2 self-start rounded-full border border-[var(--error-color)]/25 px-5 py-2.5 text-sm font-medium text-[var(--error-color)] transition-colors hover:bg-[var(--error-color)]/8"
+                >
+                  <LogOut size={16} />
+                  <span>Шығу</span>
+                </button>
+              </section>
+            )}
           </div>
         )}
       </div>
