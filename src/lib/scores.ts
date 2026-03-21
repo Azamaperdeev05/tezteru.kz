@@ -1,6 +1,13 @@
-import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { OperationType, handleFirestoreError, isMissingIndexError } from './firebase-errors';
+
+export interface StoredScoreHistoryPoint {
+  time: number;
+  wpm: number;
+  rawWpm: number;
+  errors: number;
+}
 
 export interface StoredScore {
   id: string;
@@ -20,6 +27,9 @@ export interface StoredScore {
   extraChars?: number;
   missedChars?: number;
   time?: number;
+  history?: StoredScoreHistoryPoint[];
+  punctuation?: boolean;
+  numbers?: boolean;
 }
 
 function toStoredScore(doc: any): StoredScore {
@@ -88,6 +98,21 @@ export async function fetchUserScores(uid: string, limitCount: number) {
       handleFirestoreError(fallbackError, OperationType.GET, 'scores');
       return { scores: [], usedFallback: true };
     }
+  }
+}
+
+export async function fetchScoreById(scoreId: string) {
+  try {
+    const scoreSnapshot = await getDoc(doc(db, 'scores', scoreId));
+
+    if (!scoreSnapshot.exists()) {
+      return null;
+    }
+
+    return toStoredScore(scoreSnapshot);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, `scores/${scoreId}`);
+    return null;
   }
 }
 

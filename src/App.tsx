@@ -1,15 +1,18 @@
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Keyboard, Trophy, Volume2, VolumeX, Gamepad2, Users, Settings as SettingsIcon, Download, BarChart3, Github, HeartHandshake, Mail, Code2 } from 'lucide-react';
-import { Suspense, lazy, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, NavLink, useLocation, Navigate } from 'react-router-dom';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { BrowserRouter, Routes, Route, Link, NavLink, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Auth } from './components/Auth';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { OnboardingModal } from './components/OnboardingModal';
 import { ThemeToggle } from './components/ThemeToggle';
 import { TypingTest } from './components/TypingTest';
 import { auth } from './firebase';
 import { TestConfig } from './hooks/useTypingTest';
+import { getStoredThemeId } from './lib/appearance';
 import { SITE_LINKS } from './lib/site-links';
+import { getStoredSoundTheme } from './lib/sounds';
 import { cn } from './lib/utils';
 
 const Leaderboard = lazy(() => import('./components/Leaderboard').then((module) => ({ default: module.Leaderboard })));
@@ -18,6 +21,50 @@ const ArcadeMode = lazy(() => import('./components/ArcadeMode').then((module) =>
 const MultiplayerRace = lazy(() => import('./components/MultiplayerRace').then((module) => ({ default: module.MultiplayerRace })));
 const Settings = lazy(() => import('./components/Settings').then((module) => ({ default: module.Settings })));
 const StatsPage = lazy(() => import('./components/StatsPage').then((module) => ({ default: module.StatsPage })));
+const ResultPage = lazy(() => import('./components/ResultPage').then((module) => ({ default: module.ResultPage })));
+
+const TEST_CONFIG_STORAGE_KEY = 'tezteru:test-config';
+const SOUND_ENABLED_STORAGE_KEY = 'tezteru:sound-enabled';
+const ONBOARDING_STORAGE_KEY = 'tezteru:onboarding-complete';
+
+function getDefaultConfig(): TestConfig {
+  return {
+    mode: 'time',
+    amount: 30,
+    punctuation: false,
+    numbers: false,
+  };
+}
+
+function readStoredConfig(): TestConfig {
+  if (typeof window === 'undefined') {
+    return getDefaultConfig();
+  }
+
+  try {
+    const parsedValue = JSON.parse(window.localStorage.getItem(TEST_CONFIG_STORAGE_KEY) ?? '{}') as Partial<TestConfig>;
+    const mode = parsedValue.mode === 'words' ? 'words' : 'time';
+    const amountOptions = mode === 'time' ? [15, 30, 60, 120] : [10, 25, 50, 100];
+
+    return {
+      mode,
+      amount: amountOptions.includes(parsedValue.amount ?? 0) ? (parsedValue.amount as number) : (mode === 'time' ? 30 : 25),
+      punctuation: Boolean(parsedValue.punctuation),
+      numbers: Boolean(parsedValue.numbers),
+      wordCategories: Array.isArray(parsedValue.wordCategories) ? parsedValue.wordCategories : undefined,
+    };
+  } catch {
+    return getDefaultConfig();
+  }
+}
+
+function readStoredSoundEnabled() {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+
+  return window.localStorage.getItem(SOUND_ENABLED_STORAGE_KEY) !== 'false';
+}
 
 function RouteLoader() {
   return <div className="p-8 text-center text-[var(--sub-color)]">Бет жүктелуде...</div>;
@@ -37,6 +84,41 @@ function NavIconLink({ to, title, icon: Icon }: { to: string; title: string; ico
     >
       <Icon size={18} className="transition-transform group-hover:scale-105" />
     </NavLink>
+  );
+}
+
+function HomeLogoLink() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleClick = () => {
+    navigate('/', {
+      state: {
+        homeResetAt: Date.now(),
+      },
+      replace: location.pathname === '/',
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="group inline-flex items-center gap-3 text-left text-(--sub-color) transition-colors hover:text-(--main-color)"
+    >
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-(--accent-color)/20 bg-(--main-color)/4 transition-transform group-hover:scale-[1.02]">
+        <Keyboard size={24} strokeWidth={2.4} className="text-(--accent-color)" />
+      </div>
+      <div className="leading-none">
+        <div className="text-[0.72rem] font-medium uppercase tracking-[0.22em] text-(--sub-color)/80">
+          қазақша теру
+        </div>
+        <h1 className="mt-1 text-3xl font-bold tracking-[-0.08em] lowercase text-(--main-color)">
+          tezteru
+          <span className="ml-2 text-base font-medium tracking-[-0.03em] text-(--sub-color)">kz</span>
+        </h1>
+      </div>
+    </button>
   );
 }
 
@@ -62,6 +144,7 @@ function AnimatedRoutes({ user, config, setConfig, soundEnabled }: { user: User 
             <Route path="/arcade" element={<ArcadeMode />} />
             <Route path="/multiplayer" element={<MultiplayerRace />} />
             <Route path="/settings" element={<Settings user={user} />} />
+            <Route path="/result/:scoreId" element={<ResultPage />} />
           </Routes>
         </Suspense>
       </motion.div>
@@ -71,16 +154,14 @@ function AnimatedRoutes({ user, config, setConfig, soundEnabled }: { user: User 
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
-  const [config, setConfig] = useState<TestConfig>({
-    mode: 'time',
-    amount: 30,
-    punctuation: false,
-    numbers: false,
-  });
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [config, setConfig] = useState<TestConfig>(readStoredConfig);
+  const [soundEnabled, setSoundEnabled] = useState(readStoredSoundEnabled);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallButton, setShowInstallButton] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const initialThemeId = useMemo(() => getStoredThemeId(), []);
+  const initialSoundTheme = useMemo(() => getStoredSoundTheme(), []);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {
@@ -101,6 +182,39 @@ function AppContent() {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(
+      TEST_CONFIG_STORAGE_KEY,
+      JSON.stringify({
+        mode: config.mode,
+        amount: config.amount,
+        punctuation: config.punctuation,
+        numbers: config.numbers,
+        wordCategories: config.wordCategories,
+      })
+    );
+  }, [config]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(SOUND_ENABLED_STORAGE_KEY, soundEnabled ? 'true' : 'false');
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    setShowOnboarding(window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== 'true');
+  }, [isAuthReady]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -125,23 +239,7 @@ function AppContent() {
       <div className="min-h-screen flex flex-col">
         <header className="w-full max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Link
-              to="/"
-              className="group inline-flex items-center gap-3 text-(--sub-color) transition-colors hover:text-(--main-color)"
-            >
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-(--accent-color)/20 bg-(--main-color)/4 transition-transform group-hover:scale-[1.02]">
-                <Keyboard size={24} strokeWidth={2.4} className="text-(--accent-color)" />
-              </div>
-              <div className="leading-none">
-                <div className="text-[0.72rem] font-medium uppercase tracking-[0.22em] text-(--sub-color)/80">
-                  қазақша теру
-                </div>
-                <h1 className="mt-1 text-3xl font-bold tracking-[-0.08em] lowercase text-(--main-color)">
-                  tezteru
-                  <span className="ml-2 text-base font-medium tracking-[-0.03em] text-(--sub-color)">kz</span>
-                </h1>
-              </div>
-            </Link>
+            <HomeLogoLink />
 
             <div className="flex items-center justify-between gap-3 sm:gap-6">
               <div className="no-scrollbar flex items-center gap-1 overflow-x-auto rounded-full border border-(--sub-color)/10 bg-(--main-color)/3 px-2 py-1 text-(--sub-color)">
@@ -205,6 +303,20 @@ function AppContent() {
             </div>
           </div>
         </footer>
+
+        <OnboardingModal
+          open={showOnboarding}
+          initialConfig={config}
+          initialSoundEnabled={soundEnabled}
+          initialSoundTheme={initialSoundTheme}
+          initialThemeId={initialThemeId}
+          onComplete={({ config: nextConfig, soundEnabled: nextSoundEnabled }) => {
+            setConfig(nextConfig);
+            setSoundEnabled(nextSoundEnabled);
+            window.localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+            setShowOnboarding(false);
+          }}
+        />
       </div>
     </BrowserRouter>
   );

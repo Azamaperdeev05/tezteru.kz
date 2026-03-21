@@ -2,9 +2,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { RefreshCw, Save, Clock, Type, Hash, Quote, RotateCcw, Minus, Square, Underline } from 'lucide-react';
 import { CSSProperties, Suspense, lazy, memo, useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { TestConfig, useTypingTest } from '../hooks/useTypingTest';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
+import { ResultRouteState, getTypingResultAchievements } from '../lib/results';
 import { cn } from '../lib/utils';
 
 type CaretStyle = 'line' | 'block' | 'underline';
@@ -45,14 +47,18 @@ interface TypingTestProps {
 
 export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestProps) {
   const { targetText, userInput, status, stats, timeLeft, handleInput, reset } = useTypingTest(config, soundEnabled);
+  const navigate = useNavigate();
+  const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const caretRef = useRef<HTMLDivElement>(null);
   const typingViewportRef = useRef<HTMLDivElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
   const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const visibleStartLineRef = useRef(0);
+  const handledHomeResetRef = useRef<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedScoreId, setSavedScoreId] = useState<string | null>(null);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [hasTypingFocus, setHasTypingFocus] = useState(() => document.hasFocus());
   const [isWindowFocused, setIsWindowFocused] = useState(() => document.hasFocus());
@@ -81,6 +87,7 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
         setHasTypingFocus(true);
       });
       setSaved(false);
+      setSavedScoreId(null);
       visibleStartLineRef.current = 0;
       setScrollOffset(0);
     }
@@ -91,6 +98,23 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
     visibleStartLineRef.current = 0;
     setScrollOffset(0);
   }, [targetText]);
+
+  useEffect(() => {
+    const homeResetAt = (location.state as { homeResetAt?: number } | null)?.homeResetAt;
+
+    if (typeof homeResetAt !== 'number' || handledHomeResetRef.current === homeResetAt) {
+      return;
+    }
+
+    handledHomeResetRef.current = homeResetAt;
+    reset();
+
+    requestAnimationFrame(() => {
+      typingViewportRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      inputRef.current?.focus();
+      setHasTypingFocus(true);
+    });
+  }, [location.state, reset]);
 
   const focusTypingInput = useCallback(() => {
     if (status === 'finished') return;
@@ -254,11 +278,11 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
   }, [zenMode, status]);
 
   const handleSaveScore = useCallback(async () => {
-    if (!auth.currentUser || status !== 'finished' || saved) return;
+    if (!auth.currentUser || status !== 'finished' || saved || stats.wpm === 0) return null;
 
     setSaving(true);
     try {
-      await addDoc(collection(db, 'scores'), {
+      const docRef = await addDoc(collection(db, 'scores'), {
         uid: auth.currentUser.uid,
         displayName: auth.currentUser.displayName || 'Қонақ',
         photoURL: auth.currentUser.photoURL || null,
@@ -272,38 +296,57 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
         missedChars: stats.missedChars,
         time: stats.time,
         errorMap: stats.errorMap,
+        history: stats.history,
         mode: config.mode,
         amount: config.amount,
+        punctuation: config.punctuation,
+        numbers: config.numbers,
         createdAt: serverTimestamp(),
       });
       setSaved(true);
+      setSavedScoreId(docRef.id);
+      return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'scores');
+      return null;
     } finally {
       setSaving(false);
     }
-  }, [auth.currentUser, status, saved, stats, config]);
+  }, [status, saved, stats, config]);
 
   useEffect(() => {
     if (status === 'finished' && auth.currentUser && !saved) {
       const autoSave = localStorage.getItem('autoSave') !== 'false';
       if (autoSave) {
-        handleSaveScore();
+        void handleSaveScore();
       }
     }
   }, [status, auth.currentUser, saved, handleSaveScore]);
 
   useEffect(() => {
     if (status === 'finished') {
-      const newAchievements = [];
-      if (stats.wpm >= 100) newAchievements.push('🏆 100 ЖСМ клубы');
-      if (stats.accuracy === 100) newAchievements.push('🎯 Мерген');
-      const hour = new Date().getHours();
-      if (hour >= 22 || hour <= 4) newAchievements.push('🦉 Түнгі үкі');
-      if (stats.wpm >= 50 && stats.wpm < 100) newAchievements.push('🚀 Жылдам жазушы');
-      setAchievements(newAchievements);
+      setAchievements(getTypingResultAchievements(stats));
     }
-  }, [status, stats.wpm, stats.accuracy]);
+  }, [status, stats]);
+
+  useEffect(() => {
+    if (!savedScoreId || status !== 'finished') {
+      return;
+    }
+
+    const nextAchievements = achievements.length > 0 ? achievements : getTypingResultAchievements(stats);
+    const resultState: ResultRouteState = {
+      scoreId: savedScoreId,
+      stats,
+      config,
+      achievements: nextAchievements,
+    };
+
+    navigate(`/result/${savedScoreId}`, {
+      replace: true,
+      state: resultState,
+    });
+  }, [savedScoreId, status, stats, config, achievements, navigate]);
 
   const handlePracticeMissed = () => {
     if (stats.missedWords.length > 0) {
@@ -639,7 +682,9 @@ export function TypingTest({ config, onConfigChange, soundEnabled }: TypingTestP
 
           {status === 'finished' && auth.currentUser && (
             <button
-              onClick={handleSaveScore}
+              onClick={async () => {
+                await handleSaveScore();
+              }}
               disabled={saving || saved || stats.wpm === 0}
               className={cn(
                 "mt-2 flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all",

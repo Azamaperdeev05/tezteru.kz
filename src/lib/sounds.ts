@@ -210,6 +210,15 @@ export function getStoredSoundTheme() {
   return SOUND_THEMES.some((theme) => theme.id === storedTheme) ? (storedTheme as SoundThemeId) : DEFAULT_SOUND_THEME;
 }
 
+export function setStoredSoundTheme(themeId: SoundThemeId) {
+  if (typeof window === 'undefined') {
+    return themeId;
+  }
+
+  window.localStorage.setItem(SOUND_THEME_STORAGE_KEY, themeId);
+  return themeId;
+}
+
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private noiseBuffer: AudioBuffer | null = null;

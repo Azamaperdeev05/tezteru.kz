@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { db, auth } from '../firebase';
-import { doc, getDoc, onSnapshot, runTransaction, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteField, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { generateWords } from '../lib/words';
-import { Users, Copy, Check, Trophy, Loader2 } from 'lucide-react';
+import { Users, Copy, Check, Trophy, Loader2, LogOut } from 'lucide-react';
 
 type RaceStatus = 'waiting' | 'playing' | 'finished';
 
@@ -54,6 +54,7 @@ export function MultiplayerRace() {
   const pendingProgressRef = useRef<number | null>(null);
   const progressTimeoutRef = useRef<number | null>(null);
   const lastSentProgressRef = useRef<number | null>(null);
+  const isLeavingRoomRef = useRef(false);
 
   useEffect(() => {
     roomDataRef.current = roomData;
@@ -69,7 +70,11 @@ export function MultiplayerRace() {
       if (docSnap.exists()) {
         setRoomData(docSnap.data() as RaceRoom);
       } else {
+        roomIdRef.current = '';
         setRoomData(null);
+        setRoomId('');
+        setJoinId('');
+        setInput('');
       }
     });
     return () => unsub();
@@ -107,6 +112,97 @@ export function MultiplayerRace() {
       }
     };
   }, []);
+
+  const resetRoomState = useCallback(() => {
+    roomIdRef.current = '';
+    setRoomId('');
+    setRoomData(null);
+    setJoinId('');
+    setInput('');
+  }, []);
+
+  const leaveRoom = useCallback(async (options?: { silent?: boolean; resetState?: boolean }) => {
+    const currentRoomId = roomIdRef.current;
+    const currentUser = auth.currentUser;
+    const shouldResetState = options?.resetState ?? true;
+
+    if (!currentRoomId || !currentUser || isLeavingRoomRef.current) {
+      if (shouldResetState && !currentRoomId) {
+        resetRoomState();
+      }
+      return;
+    }
+
+    isLeavingRoomRef.current = true;
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const roomRef = doc(db, 'rooms', currentRoomId);
+        const roomSnap = await transaction.get(roomRef);
+
+        if (!roomSnap.exists()) {
+          return;
+        }
+
+        const room = roomSnap.data() as RaceRoom;
+        const currentPlayer = room.players?.[currentUser.uid];
+
+        if (!currentPlayer) {
+          return;
+        }
+
+        const playerCount = getRoomPlayerCount(room);
+        const finishedCount = getRoomFinishedCount(room);
+        const nextPlayerCount = Math.max(0, playerCount - 1);
+        const nextFinishedCount = Math.max(0, finishedCount - (currentPlayer.finished ? 1 : 0));
+
+        if (nextPlayerCount === 0 || room.hostId === currentUser.uid) {
+          transaction.delete(roomRef);
+          return;
+        }
+
+        const nextStatus =
+          room.status === 'playing' && nextFinishedCount >= nextPlayerCount
+            ? 'finished'
+            : room.status;
+
+        transaction.update(roomRef, {
+          [`players.${currentUser.uid}`]: deleteField(),
+          playerCount: nextPlayerCount,
+          finishedCount: Math.min(nextFinishedCount, nextPlayerCount),
+          status: nextStatus,
+        });
+      });
+    } catch (error) {
+      if (!options?.silent) {
+        console.error(error);
+      }
+    } finally {
+      isLeavingRoomRef.current = false;
+
+      if (shouldResetState) {
+        resetRoomState();
+      }
+    }
+  }, [resetRoomState]);
+
+  useEffect(() => {
+    const handlePageHide = () => {
+      void leaveRoom({ silent: true, resetState: false });
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handlePageHide);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handlePageHide);
+
+      if (roomIdRef.current) {
+        void leaveRoom({ silent: true, resetState: false });
+      }
+    };
+  }, [leaveRoom]);
 
   const updateProgressInRoom = useCallback(async (progress: number) => {
     const currentRoomId = roomIdRef.current;
@@ -427,6 +523,15 @@ export function MultiplayerRace() {
             >
               {copied ? <Check size={20} /> : <Copy size={20} />}
             </button>
+            <button
+              onClick={() => {
+                void leaveRoom();
+              }}
+              className="text-(--sub-color) hover:text-(--accent-color)"
+              title="Бөлмеден шығу"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
         {roomData.status === 'waiting' && (
@@ -526,10 +631,7 @@ export function MultiplayerRace() {
           </div>
           <button 
             onClick={() => {
-              setRoomId('');
-              setRoomData(null);
-              setJoinId('');
-              setInput('');
+              void leaveRoom();
             }} 
             className="mt-8 px-8 py-3 bg-[var(--main-color)] text-[var(--bg-color)] rounded-full font-bold hover:opacity-90 transition-opacity"
           >

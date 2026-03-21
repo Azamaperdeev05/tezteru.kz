@@ -172,6 +172,49 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).changedKeys().hasOnly(['players', 'finishedCount', 'status']);
     }
 
+    function canLeaveRoom() {
+      return isSignedIn()
+        && isValidRaceRoom(resource.data)
+        && isValidRaceRoom(request.resource.data)
+        && request.auth.uid != resource.data.hostId
+        && resource.data.players.keys().hasAny([request.auth.uid])
+        && !request.resource.data.players.keys().hasAny([request.auth.uid])
+        && roomCoreIsUnchanged()
+        && roomPlayerCountIsUnchanged() == false
+        && roomStartedAtIsUnchanged()
+        && request.resource.data.hostId == resource.data.hostId
+        && request.resource.data.playerCount == resource.data.playerCount - 1
+        && request.resource.data.finishedCount
+          == (resource.data.players[request.auth.uid].finished
+            ? resource.data.finishedCount - 1
+            : resource.data.finishedCount)
+        && request.resource.data.players.diff(resource.data.players).removedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.players.diff(resource.data.players).addedKeys().size() == 0
+        && request.resource.data.players.diff(resource.data.players).changedKeys().size() == 0
+        && (
+          (resource.data.status == 'waiting' && request.resource.data.status == 'waiting')
+          || (resource.data.status == 'finished' && request.resource.data.status == 'finished')
+          || (resource.data.status == 'playing'
+            && (
+              (request.resource.data.finishedCount >= request.resource.data.playerCount
+                && request.resource.data.status == 'finished')
+              || (request.resource.data.finishedCount < request.resource.data.playerCount
+                && request.resource.data.status == 'playing')
+            ))
+        )
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['players', 'playerCount', 'finishedCount', 'status']);
+    }
+
+    function canDeleteRoom() {
+      return isSignedIn()
+        && isValidRaceRoom(resource.data)
+        && resource.data.players.keys().hasAny([request.auth.uid])
+        && (
+          resource.data.hostId == request.auth.uid
+          || resource.data.playerCount == 1
+        );
+    }
+
     // Жарыстар (Multiplayer Rooms)
     match /rooms/{roomId} {
       allow read: if isSignedIn();
@@ -179,7 +222,9 @@ service cloud.firestore {
       allow update: if canJoinWaitingRoom()
         || canStartRace()
         || canUpdateOwnProgress()
-        || canFinishRace();
+        || canFinishRace()
+        || canLeaveRoom();
+      allow delete: if canDeleteRoom();
     }
 
     // Нәтижелер (Scores)
